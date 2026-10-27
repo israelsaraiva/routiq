@@ -2,6 +2,7 @@ import { Copy01Icon, MoreHorizontalIcon, Settings02Icon } from '@hugeicons/core-
 import { EnvironmentSummary } from '../shared/types';
 import { Icon } from './Icon';
 import { IconButton } from './components/IconButton';
+import { Button } from './components/ui/button';
 import { Label } from './components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
@@ -38,21 +39,23 @@ export function RequestToolbar({ environments, activeEnvironmentId, onSelectEnvi
           </SelectContent>
         </Select>
       </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <IconButton className="toolbar-menu-trigger" icon={MoreHorizontalIcon} label="More actions" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onSelect={onManageEnvironments}>
-            <Icon icon={Settings02Icon} />
-            Manage environments
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onCopyCurl}>
-            <Icon icon={Copy01Icon} />
-            Copy as cURL
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="request-toolbar-actions">
+        <Button variant="secondary" size="sm" onClick={onCopyCurl} title="Copy this request as a cURL command">
+          <Icon icon={Copy01Icon} />
+          Copy cURL
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <IconButton className="toolbar-menu-trigger" icon={MoreHorizontalIcon} label="More actions" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onSelect={onManageEnvironments}>
+              <Icon icon={Settings02Icon} />
+              Manage environments
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }

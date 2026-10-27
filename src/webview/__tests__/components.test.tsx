@@ -217,6 +217,20 @@ describe('RequestToolbar', () => {
     expect(screen.getByLabelText('Environment').textContent).toContain('Staging');
     expect(screen.getByLabelText('More actions')).toBeTruthy();
   });
+
+  it('copies the request as cURL from a visible button', () => {
+    const onCopyCurl = vi.fn();
+    render(
+      <RequestToolbar
+        environments={[]}
+        onSelectEnvironment={vi.fn()}
+        onManageEnvironments={vi.fn()}
+        onCopyCurl={onCopyCurl}
+      />,
+    );
+    fireEvent.click(screen.getByText('Copy cURL'));
+    expect(onCopyCurl).toHaveBeenCalled();
+  });
 });
 
 describe('ConnectionBar', () => {

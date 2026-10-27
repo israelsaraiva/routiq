@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- A visible **Copy cURL** button in the request toolbar.
+
 ## 0.1.0
 
 Initial release.
