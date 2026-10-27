@@ -1,5 +1,12 @@
 const TOKEN_PATTERN = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<![^>]*>|<(?:[^>"']|"[^"]*"|'[^']*')*>|[^<]+|</g;
+const RAW_TEXT_ELEMENT_SOURCE = `<(script|style)\\b(?:[^>"']|"[^"]*"|'[^']*')*>[\\s\\S]*?<\\/\\1\\s*>`;
+const WHOLE_RAW_TEXT_ELEMENT = new RegExp(`^${RAW_TEXT_ELEMENT_SOURCE}$`, 'i');
+const VOID_HTML_ELEMENTS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr',
+]);
 const INDENT = '  ';
+
+export type MarkupDialect = 'xml' | 'html';
 
 type XmlTokenKind = 'open' | 'close' | 'selfClosing' | 'text' | 'leaf';
 
@@ -8,7 +15,14 @@ interface XmlToken {
   text: string;
 }
 
-function classify(raw: string): XmlToken {
+function tagName(raw: string): string {
+  return /^<\/?([^\s/>]+)/.exec(raw)?.[1].toLowerCase() ?? '';
+}
+
+function classify(raw: string, dialect: MarkupDialect): XmlToken {
+  if (dialect === 'html' && WHOLE_RAW_TEXT_ELEMENT.test(raw)) {
+    return { kind: 'leaf', text: raw };
+  }
   if (!raw.startsWith('<') || raw.startsWith('<![CDATA[')) {
     return { kind: 'text', text: raw };
   }
@@ -18,12 +32,17 @@ function classify(raw: string): XmlToken {
   if (raw.startsWith('</')) {
     return { kind: 'close', text: raw };
   }
-  return { kind: raw.endsWith('/>') ? 'selfClosing' : 'open', text: raw };
+  const selfClosing = raw.endsWith('/>') || (dialect === 'html' && VOID_HTML_ELEMENTS.has(tagName(raw)));
+  return { kind: selfClosing ? 'selfClosing' : 'open', text: raw };
 }
 
-function tokenize(xml: string): XmlToken[] {
-  return (xml.match(TOKEN_PATTERN) ?? [])
-    .map(classify)
+function tokenPattern(dialect: MarkupDialect): RegExp {
+  return dialect === 'html' ? new RegExp(`${RAW_TEXT_ELEMENT_SOURCE}|${TOKEN_PATTERN.source}`, 'gi') : TOKEN_PATTERN;
+}
+
+function tokenize(xml: string, dialect: MarkupDialect): XmlToken[] {
+  return (xml.match(tokenPattern(dialect)) ?? [])
+    .map((raw) => classify(raw, dialect))
     .map((token) => (token.kind === 'text' && !token.text.startsWith('<') ? { ...token, text: token.text.trim() } : token))
     .filter((token) => token.text !== '');
 }
@@ -33,7 +52,15 @@ function isInlineElement(tokens: XmlToken[], index: number): boolean {
 }
 
 export function prettifyXml(xml: string): string {
-  const tokens = tokenize(xml);
+  return prettifyMarkup(xml, 'xml');
+}
+
+export function prettifyHtml(html: string): string {
+  return prettifyMarkup(html, 'html');
+}
+
+function prettifyMarkup(markup: string, dialect: MarkupDialect): string {
+  const tokens = tokenize(markup, dialect);
   const lines: string[] = [];
   let depth = 0;
   for (let index = 0; index < tokens.length; index++) {

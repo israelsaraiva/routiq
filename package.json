@@ -2,7 +2,7 @@
   "name": "routiq",
   "displayName": "Routiq",
   "description": "A lightweight Insomnia/Postman-like REST, GraphQL, gRPC and Kafka client inside VS Code.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",
@@ -85,6 +85,17 @@
           "type": "string",
           "default": "",
           "description": "Directory where collections are stored as one JSON file each. Absolute, or relative to the first workspace folder (e.g. \".routiq\"). Empty uses the extension's global storage."
+        },
+        "routiq.autoSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically save request and environment editors after a pause in editing (see routiq.autoSaveDelayMs). Cmd/Ctrl+S and the Save button still work."
+        },
+        "routiq.autoSaveDelayMs": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 500,
+          "description": "Milliseconds of inactivity before an edited request or environment is saved automatically."
         },
         "routiq.autoReveal": {
           "type": "boolean",

@@ -37,6 +37,8 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `routiq.storagePath` | `""` | Where collections are stored; empty uses global storage. |
+| `routiq.autoSave` | `true` | Save edited requests and environments automatically after a pause. |
+| `routiq.autoSaveDelayMs` | `5000` | Pause (ms, minimum 500) before auto save. |
 | `routiq.autoReveal` | `true` | Reveal the active request in the tree. |
 | `routiq.history.maxEntries` | `50` | History entries kept per request. |
 | `routiq.history.maxBodyBytes` | `262144` | Response bytes stored per history entry. |
@@ -288,6 +290,8 @@ Each collection is one pretty-printed JSON file (2-space indent, stable key orde
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `routiq.storagePath` | `""` | Absolute path, or path relative to the first workspace folder (e.g. `.routiq`). Empty = the extension's global storage (`…/globalStorage/<id>/collections`). |
+| `routiq.autoSave` | `true` | Auto save: an edited request or environments editor is saved 5 seconds after the last change (a `*` becomes "Saving…" then "Saved"). Applies live. Requests that are blank or have an invalid JSON body are not auto-saved; Cmd/Ctrl+S still saves immediately and cancels the pending auto save. Pending edits are also saved when the panel loses focus or is hidden. |
+| `routiq.autoSaveDelayMs` | `5000` | Inactivity delay before auto save, in milliseconds (minimum 500). |
 | `routiq.autoReveal` | `true` | Select (without focusing) the active request's item in the sidebar tree, expanding its folders; skipped when the tree filter hides it. |
 | `routiq.timeoutMs` | `30000` | Request timeout. |
 | `routiq.history.maxEntries` | `50` | History entries kept per request. |

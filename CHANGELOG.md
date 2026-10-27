@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- **Auto save**: edited requests and the environments editor are saved automatically 5 seconds after the last change, and when the panel loses focus or is hidden. New settings `routiq.autoSave` (default on) and `routiq.autoSaveDelayMs` (default 5000, minimum 500), applied live. The title shows `Saving…` / `Saved`. Blank requests and invalid JSON bodies are not auto-saved; Cmd/Ctrl+S saves immediately. An edit made while a save is in flight now stays marked as unsaved.
+- Response **Pretty** view fixed: big integers beyond 2^53 are no longer rounded, and JSON with a BOM, NDJSON, XML/SOAP and HTML bodies are now indented regardless of the declared content type. **Raw** always shows the exact original body.
+
 ## 0.2.1
 
 - Kafka: verified against a real broker. Fixed an empty error when producing to an unreachable broker and a failed first connect to a topic that is auto-created.

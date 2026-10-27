@@ -3,6 +3,7 @@ import {
   MoreVerticalIcon, Undo02Icon,
 } from '@hugeicons/core-free-icons';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { DEFAULT_AUTO_SAVE_SETTINGS } from '../core/autoSave';
 import { Environment, EnvironmentsDraft, HostToWebviewMessage, KeyValue } from '../shared/types';
 import { Icon } from './Icon';
 import { IconButton } from './components/IconButton';
@@ -19,6 +20,7 @@ import { Input } from './components/ui/input';
 import { VariableSuggestionsContext } from './AutocompleteInput';
 import { buildVariableSuggestions } from '../core/variableCatalog';
 import { EnvironmentVariablesTable } from './EnvironmentVariablesTable';
+import { useAutoSave } from './useAutoSave';
 import { postToHost } from './vscodeApi';
 
 const BASE_SELECTION = 'base';
@@ -36,6 +38,10 @@ export function EnvironmentsEditor() {
   const [draft, setDraft] = useState<EnvironmentsDraft>();
   const [selectedId, setSelectedId] = useState(BASE_SELECTION);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [autoSaveSettings, setAutoSaveSettings] = useState(DEFAULT_AUTO_SAVE_SETTINGS);
+  const draftRef = useRef<EnvironmentsDraft>();
+  const dirtyRef = useRef(false);
   const [renamingId, setRenamingId] = useState<string>();
   const [renameValue, setRenameValue] = useState('');
   const [deletingId, setDeletingId] = useState<string>();
@@ -51,7 +57,10 @@ export function EnvironmentsEditor() {
         baselineRef.current ??= message.draft;
       } else if (message.type === 'saved') {
         baselineRef.current = pendingSaveRef.current ?? baselineRef.current;
-        setDirty(false);
+        setDirty(draftRef.current !== pendingSaveRef.current);
+        setSaving(false);
+      } else if (message.type === 'autoSaveSettings') {
+        setAutoSaveSettings({ enabled: message.enabled, delayMs: message.delayMs });
       }
     };
     window.addEventListener('message', onMessage);
@@ -59,12 +68,27 @@ export function EnvironmentsEditor() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  const save = useCallback(() => {
-    if (draft) {
-      pendingSaveRef.current = draft;
-      postToHost({ type: 'saveEnvironments', ...draft });
+  draftRef.current = draft;
+  dirtyRef.current = dirty;
+
+  const postSave = useCallback((target: EnvironmentsDraft) => {
+    pendingSaveRef.current = target;
+    setSaving(true);
+    postToHost({ type: 'saveEnvironments', ...target });
+  }, []);
+
+  const autoSave = useAutoSave(autoSaveSettings, () => {
+    if (draftRef.current && dirtyRef.current) {
+      postSave(draftRef.current);
     }
-  }, [draft]);
+  });
+
+  const save = useCallback(() => {
+    autoSave.cancel();
+    if (draft) {
+      postSave(draft);
+    }
+  }, [draft, autoSave, postSave]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -84,6 +108,7 @@ export function EnvironmentsEditor() {
   const update = (patch: Partial<EnvironmentsDraft>) => {
     setDraft({ ...draft, ...patch });
     setDirty(true);
+    autoSave.touch();
   };
   const updateEnvironment = (id: string, patch: Partial<Environment>) =>
     update({ environments: draft.environments.map((environment) => (environment.id === id ? { ...environment, ...patch } : environment)) });
@@ -102,6 +127,7 @@ export function EnvironmentsEditor() {
     setSelectedId(copy.id);
   };
   const discard = () => {
+    autoSave.cancel();
     if (baselineRef.current) {
       setDraft(baselineRef.current);
       if (!baselineRef.current.environments.some((environment) => environment.id === selectedId)) {
@@ -195,7 +221,7 @@ export function EnvironmentsEditor() {
           {dirty && (
             <Badge variant="outline" className="env-unsaved">
               <span className="env-unsaved-dot" aria-hidden="true" />
-              Unsaved changes
+              {saving ? 'Saving…' : 'Unsaved changes'}
             </Badge>
           )}
         </div>

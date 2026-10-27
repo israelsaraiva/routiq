@@ -1,3 +1,4 @@
+import { isJsonText } from './responsePretty';
 import { SyntaxLanguage } from './syntaxTokens';
 
 const EXTENSIONS_BY_MIME: Record<string, string> = {
@@ -44,16 +45,7 @@ export function languageForBody(contentType: string, body: string): SyntaxLangua
 function sniffLanguage(body: string): SyntaxLanguage {
   const start = body.trimStart()[0];
   if (start === '{' || start === '[') {
-    return isJson(body) ? 'json' : 'plain';
+    return isJsonText(body) ? 'json' : 'plain';
   }
   return start === '<' ? 'xml' : 'plain';
-}
-
-function isJson(body: string): boolean {
-  try {
-    JSON.parse(body);
-    return true;
-  } catch {
-    return false;
-  }
 }

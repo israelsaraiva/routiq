@@ -1,5 +1,6 @@
 import { FloppyDiskIcon, Loading03Icon, SentIcon } from '@hugeicons/core-free-icons';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { DEFAULT_AUTO_SAVE_SETTINGS, isAutoSaveable } from '../core/autoSave';
 import { toResponseModel } from '../core/history';
 import { allowsComposer, selectedMethod } from '../core/grpcConfig';
 import { conversionTargetOf } from '../core/requestConversion';
@@ -27,6 +28,8 @@ import { extractGraphqlErrors } from '../core/graphql/errors';
 import { StreamOptions } from './StreamOptions';
 import { StreamPanel, streamTitle } from './StreamPanel';
 import { useGrpcServices } from './useGrpcServices';
+import { SaveStatus } from './SaveStatus';
+import { useAutoSave } from './useAutoSave';
 import { useStream } from './useStream';
 import { CurlImportNotice, useCurlPaste } from './useCurlPaste';
 import { ConversionNotice, useRequestConversion } from './useRequestConversion';
@@ -68,6 +71,12 @@ export function App() {
   const [response, setResponse] = useState<ResponseModel>();
   const [sending, setSending] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedOnce, setSavedOnce] = useState(false);
+  const [autoSaveSettings, setAutoSaveSettings] = useState(DEFAULT_AUTO_SAVE_SETTINGS);
+  const dirtyRef = useRef(false);
+  const requestRef = useRef<RequestModel>();
+  const savingRequestRef = useRef<RequestModel>();
   const [tabSelection, setTabSelection] = useState<{ kind: RequestKind; tab: EditorTab }>();
   const stream = useStream();
   const grpcServices = useGrpcServices();
@@ -96,7 +105,11 @@ export function App() {
       } else if (message.type === 'oauthTokenResult') {
         setOauthStatus({ ok: message.ok, message: message.message });
       } else if (message.type === 'saved') {
-        setDirty(false);
+        setDirty(requestRef.current !== savingRequestRef.current);
+        setSaving(false);
+        setSavedOnce(true);
+      } else if (message.type === 'autoSaveSettings') {
+        setAutoSaveSettings({ enabled: message.enabled, delayMs: message.delayMs });
       }
     };
     window.addEventListener('message', onMessage);
@@ -104,11 +117,28 @@ export function App() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  const save = useCallback(() => {
-    if (request) {
-      postToHost({ type: 'save', request });
+  requestRef.current = request;
+  dirtyRef.current = dirty;
+
+  const postSave = useCallback((target: RequestModel) => {
+    savingRequestRef.current = target;
+    setSaving(true);
+    postToHost({ type: 'save', request: target });
+  }, []);
+
+  const autoSave = useAutoSave(autoSaveSettings, () => {
+    const current = requestRef.current;
+    if (current && dirtyRef.current && isAutoSaveable(current)) {
+      postSave(current);
     }
-  }, [request]);
+  });
+
+  const save = useCallback(() => {
+    autoSave.cancel();
+    if (request) {
+      postSave(request);
+    }
+  }, [request, autoSave, postSave]);
 
   const showHistoryEntry = useCallback((entry: HistoryEntry) => {
     setSending(false);
@@ -118,13 +148,15 @@ export function App() {
   const restoreHistoryEntry = useCallback((entry: HistoryEntry) => {
     setRequest((current) => current && { ...entry.requestSnapshot, id: current.id, name: current.name });
     setDirty(true);
+    autoSave.touch();
     setHistoryOpen(false);
-  }, []);
+  }, [autoSave]);
 
   const applyRequest = useCallback((next: RequestModel) => {
     setRequest(next);
     setDirty(true);
-  }, []);
+    autoSave.touch();
+  }, [autoSave]);
   const curlPaste = useCurlPaste(request, applyRequest);
   const conversion = useRequestConversion(request, applyRequest, (target) => {
     setTabSelection(target === 'graphql' ? { kind: 'graphql', tab: 'query' } : { kind: 'http', tab: 'body' });
@@ -149,6 +181,7 @@ export function App() {
   const change = (patch: Partial<RequestModel>) => {
     setRequest({ ...request, ...patch });
     setDirty(true);
+    autoSave.touch();
   };
   const tabCounts: Partial<Record<EditorTab, number>> = {
     params: countEnabled(request.params),
@@ -179,7 +212,7 @@ export function App() {
     <div className="app">
       <div className="title">
         {collectionName} / {request.name}
-        {dirty && <span className="dirty" title="Unsaved changes"> *</span>}
+        <SaveStatus dirty={dirty} saving={saving} saved={savedOnce} />
       </div>
       <RequestToolbar
         environments={environments}

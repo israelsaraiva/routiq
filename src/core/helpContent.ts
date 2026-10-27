@@ -48,7 +48,7 @@ const GETTING_STARTED: HelpSection = {
       title: 'Send a request',
       body: [
         'Choose the method, type the URL and press Enter in the URL field or click Send. The response shows status, time, size, headers and a pretty-printed body.',
-        'Save (Cmd/Ctrl+S) persists the request to the collection file.',
+        'Save (Cmd/Ctrl+S) persists the request to the collection file. Auto save does it for you 5 seconds after your last edit (routiq.autoSave, routiq.autoSaveDelayMs); blank requests and invalid JSON bodies are left for a manual save.',
       ],
     },
     {

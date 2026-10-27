@@ -1,12 +1,5 @@
 import { evaluateJsonPath } from '../core/jsonPath';
-
-export function prettyPrintBody(body: string): string {
-  try {
-    return JSON.stringify(JSON.parse(body), null, 2);
-  } catch {
-    return body;
-  }
-}
+import { prettifyResponseBody, stripByteOrderMark } from '../core/responsePretty';
 
 export function formatSize(bytes: number): string {
   if (bytes < 1024) {
@@ -29,10 +22,10 @@ export function formatDuration(ms: number): string {
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(2)} s`;
 }
 
-export function formatBodyView(body: string, pretty: boolean, filter: string): { text: string; error?: string } {
+export function formatBodyView(body: string, pretty: boolean, filter: string, contentType = ''): { text: string; error?: string } {
   const trimmedFilter = filter.trim();
   if (trimmedFilter.length === 0) {
-    return { text: pretty ? prettyPrintBody(body) : body };
+    return { text: pretty ? prettifyResponseBody(body, contentType) : body };
   }
   const document = parseJson(body);
   if (document === undefined) {
@@ -47,7 +40,7 @@ export function formatBodyView(body: string, pretty: boolean, filter: string): {
 
 function parseJson(body: string): { value: unknown } | undefined {
   try {
-    return { value: JSON.parse(body) };
+    return { value: JSON.parse(stripByteOrderMark(body)) };
   } catch {
     return undefined;
   }

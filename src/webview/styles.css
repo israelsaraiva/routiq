@@ -71,6 +71,7 @@ code, pre, .response-body, .url-input, .kv-grid .ui-input, .script-input, .strea
 .app { display: flex; flex-direction: column; gap: var(--rq-space-3); padding: var(--rq-space-3) var(--rq-space-4); height: 100%; min-width: 0; }
 .title { color: var(--muted-foreground); font-weight: 500; letter-spacing: 0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dirty { color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--warning)); font-weight: 700; }
+.save-status { color: var(--muted-foreground); font-size: 0.85em; font-weight: 400; }
 .section-title { margin: 0; font-size: 0.78em; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
 .placeholder { padding: var(--rq-space-4); color: var(--muted-foreground); }
 .hint { margin: 0; color: var(--muted-foreground); }

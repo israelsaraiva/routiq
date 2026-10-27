@@ -247,6 +247,7 @@ export type HostToWebviewMessage =
   | { type: 'sending' }
   | { type: 'response'; response: ResponseModel }
   | { type: 'saved' }
+  | { type: 'autoSaveSettings'; enabled: boolean; delayMs: number }
   | { type: 'filePicked'; target: FilePickTarget; path: string }
   | { type: 'oauthTokenResult'; ok: boolean; message: string }
   | StreamHostMessage

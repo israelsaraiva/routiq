@@ -57,7 +57,7 @@ function ResponseContent({ response }: { response: ResponseModel }) {
   const [wrap, setWrap] = useState(true);
   const [filter, setFilter] = useState('');
   const contentType = findContentType(response.headers);
-  const view = useMemo(() => formatBodyView(response.body, pretty, filter), [response.body, pretty, filter]);
+  const view = useMemo(() => formatBodyView(response.body, pretty, filter, contentType), [response.body, pretty, filter, contentType]);
   const activeTab: ResponseTab = tab === 'tests' && !response.scripts ? 'body' : tab;
 
   return (

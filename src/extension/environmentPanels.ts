@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { EnvironmentsDraft, HostToWebviewMessage, WebviewToHostMessage } from '../shared/types';
+import { onDidChangeAutoSaveSettings, readAutoSaveSettings } from './autoSaveSettings';
 import { stripDraftSecrets } from '../core/secrets';
 import { SecretVault } from './secretVault';
 import { Storage } from './storage';
@@ -7,12 +8,15 @@ import { renderWebviewHtml } from './webviewHtml';
 
 export class EnvironmentPanels implements vscode.Disposable {
   private readonly panels = new Map<string, vscode.WebviewPanel>();
+  private readonly autoSaveSubscription: vscode.Disposable;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly storage: Storage,
     private readonly vault: SecretVault,
-  ) {}
+  ) {
+    this.autoSaveSubscription = onDidChangeAutoSaveSettings(() => this.panels.forEach((panel) => postAutoSaveSettings(panel)));
+  }
 
   open(collectionId: string): void {
     const collection = this.storage.getCollection(collectionId);
@@ -28,6 +32,7 @@ export class EnvironmentPanels implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.autoSaveSubscription.dispose();
     [...this.panels.values()].forEach((panel) => panel.dispose());
   }
 
@@ -45,6 +50,7 @@ export class EnvironmentPanels implements vscode.Disposable {
 
   private handleMessage(collectionId: string, panel: vscode.WebviewPanel, message: WebviewToHostMessage): void {
     if (message.type === 'ready') {
+      postAutoSaveSettings(panel);
       void this.postDraft(collectionId, panel);
     } else if (message.type === 'saveEnvironments') {
       const { type: _type, ...draft } = message;
@@ -73,6 +79,10 @@ export class EnvironmentPanels implements vscode.Disposable {
       post(panel, { type: 'environmentsLoad', collectionName: collection.name, draft: await this.vault.hydrateDraft(collectionId, draft) });
     }
   }
+}
+
+function postAutoSaveSettings(panel: vscode.WebviewPanel): void {
+  post(panel, { type: 'autoSaveSettings', ...readAutoSaveSettings() });
 }
 
 function post(panel: vscode.WebviewPanel, message: HostToWebviewMessage): void {

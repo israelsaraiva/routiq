@@ -7,6 +7,7 @@ import { PreparedRequest, prepareRequest } from '../core/requestBuilder';
 import { resolveCollectionVariables, summarizeEnvironments } from '../core/environments';
 import { collectVariableSuggestions } from '../core/variableSuggestions';
 import { GraphqlSchemaSummary, HostToWebviewMessage, RequestModel, ResponseModel, WebviewToHostMessage } from '../shared/types';
+import { onDidChangeAutoSaveSettings, readAutoSaveSettings } from './autoSaveSettings';
 import { copyRequestAsCurl } from './curlCommands';
 import { CookieStore } from './cookieStore';
 import { defaultTimeoutMs } from './networkSettings';
@@ -30,6 +31,7 @@ export class RequestPanels implements vscode.Disposable {
   private readonly panels = new Map<string, vscode.WebviewPanel>();
   private readonly streams = new Map<string, StreamSession>();
   private readonly subscription: vscode.Disposable;
+  private readonly autoSaveSubscription: vscode.Disposable;
   private readonly scriptedSender: ScriptedSender;
   private readonly focusEmitter = new vscode.EventEmitter<string>();
   readonly onDidFocusCollection = this.focusEmitter.event;
@@ -48,6 +50,7 @@ export class RequestPanels implements vscode.Disposable {
   ) {
     this.scriptedSender = new ScriptedSender(storage, cookies, vault, scriptPermission);
     this.subscription = storage.onDidChange(() => this.syncPanelsWithStorage());
+    this.autoSaveSubscription = onDidChangeAutoSaveSettings(() => this.panels.forEach((panel) => postAutoSaveSettings(panel)));
   }
 
   open(requestId: string): void {
@@ -67,6 +70,7 @@ export class RequestPanels implements vscode.Disposable {
 
   dispose(): void {
     this.subscription.dispose();
+    this.autoSaveSubscription.dispose();
     this.focusEmitter.dispose();
     this.requestFocusEmitter.dispose();
     [...this.panels.values()].forEach((panel) => panel.dispose());
@@ -186,6 +190,7 @@ export class RequestPanels implements vscode.Disposable {
     }
     if (message.type === 'ready') {
       this.postLoad(requestId, panel);
+      postAutoSaveSettings(panel);
       this.postEnvironmentState(requestId, panel);
       void this.postHistoryList(requestId, panel);
     } else if (message.type === 'save') {
@@ -382,6 +387,10 @@ export class RequestPanels implements vscode.Disposable {
 
 function describeFailure(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function postAutoSaveSettings(panel: vscode.WebviewPanel): void {
+  post(panel, { type: 'autoSaveSettings', ...readAutoSaveSettings() });
 }
 
 function post(panel: vscode.WebviewPanel, message: HostToWebviewMessage): void {
