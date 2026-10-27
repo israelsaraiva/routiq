@@ -126,6 +126,14 @@ export function withCookieHeader(headers: Record<string, string>, cookieHeader: 
   return { ...headers, [existingName ?? 'Cookie']: existing ? `${existing}; ${cookieHeader}` : cookieHeader };
 }
 
+const DEFAULT_HEADERS: Record<string, string> = { 'User-Agent': 'Routiq', Accept: '*/*' };
+
+export function withDefaultHeaders(headers: Record<string, string>): Record<string, string> {
+  const present = new Set(Object.keys(headers).map((name) => name.toLowerCase()));
+  const missing = Object.entries(DEFAULT_HEADERS).filter(([name]) => !present.has(name.toLowerCase()));
+  return { ...Object.fromEntries(missing), ...headers };
+}
+
 async function fetchOnce(
   prepared: PreparedRequest,
   headers: Record<string, string>,
@@ -133,7 +141,7 @@ async function fetchOnce(
   signal: AbortSignal,
 ): Promise<TransportResponse> {
   const payload = await buildPayload({ ...prepared, headers });
-  const headersWithCookies = withCookieHeader(payload.headers, options.cookies?.headerFor(prepared.url));
+  const headersWithCookies = withDefaultHeaders(withCookieHeader(payload.headers, options.cookies?.headerFor(prepared.url)));
   const response = await sendViaTransport(prepared, headersWithCookies, payload.body, options, signal);
   options.cookies?.store(prepared.url, response.headers.getSetCookie());
   return response;

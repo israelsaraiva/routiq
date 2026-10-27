@@ -2,7 +2,7 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http
 import { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { NetworkSettings } from '../core/network';
-import { sendRequest } from './httpClient';
+import { sendRequest, withDefaultHeaders } from './httpClient';
 
 const NETWORK: NetworkSettings = { followRedirects: true, maxRedirects: 5, rejectUnauthorized: true, useVsCodeNetworking: true };
 
@@ -82,5 +82,16 @@ describe('sendRequest via VS Code networking', () => {
       { timeoutMs: 100, network: { ...NETWORK, useVsCodeNetworking: false } },
     );
     expect(response.error).toContain('(direct connection)');
+  });
+});
+
+describe('withDefaultHeaders', () => {
+  it('adds User-Agent and Accept only when absent', () => {
+    expect(withDefaultHeaders({ 'Content-Type': 'application/json' })).toEqual({
+      'User-Agent': 'Routiq',
+      Accept: '*/*',
+      'Content-Type': 'application/json',
+    });
+    expect(withDefaultHeaders({ accept: 'text/html', 'user-agent': 'x' })).toEqual({ accept: 'text/html', 'user-agent': 'x' });
   });
 });

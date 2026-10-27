@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Requests now send default `User-Agent` and `Accept` headers (like Postman) unless you set them, for gateways that reject or stall on header-less requests.
+
 ## 0.1.3
 
 - Copy as cURL now matches your OS: PowerShell (`curl.exe`, backtick continuations, single-quoted strings) on Windows, bash elsewhere. New `routiq.curlShell` setting (`auto`, `bash`, `powershell`, `cmd`).
