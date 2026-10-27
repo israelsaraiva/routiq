@@ -103,7 +103,7 @@ describe('LogFilePanel CSV import', () => {
   it('shows messages imported from a Routiq CSV export', () => {
     const csv = exportAsCsv([message({ key: 'csv-key-1', value: 'multi\nline ✓' }), message({ key: 'csv-key-2', offset: '2', value: '', tombstone: true })]);
     render(<LogFilePanel logFile={{ name: 'export.csv', text: csv }} />);
-    expect(screen.getByText('csv-key-1')).toBeTruthy();
-    expect(screen.getByText('csv-key-2')).toBeTruthy();
+    expect(screen.getAllByText('csv-key-1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('csv-key-2').length).toBeGreaterThan(0);
   });
 });

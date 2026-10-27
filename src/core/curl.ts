@@ -543,6 +543,9 @@ function digestClauses(prepared: PreparedRequest, shell: CurlShell): string[] {
 
 export function curlGenerationWarnings(auth: Auth, prepared: PreparedRequest): string[] {
   const hasAuthorization = Object.keys(prepared.headers).some((name) => name.toLowerCase() === 'authorization');
+  if (auth.type === 'awsv4') {
+    return ['AWS Signature v4 is computed when the request is sent, so the signed headers were left out of the cURL command.'];
+  }
   if (auth.type === 'oauth2' && !hasAuthorization) {
     return ['OAuth 2.0 token is not available, so the Authorization header was left out. Fetch a token first and copy again.'];
   }

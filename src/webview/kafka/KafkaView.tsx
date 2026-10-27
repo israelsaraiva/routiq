@@ -9,12 +9,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { postKafkaMessage } from '../vscodeApi';
 import { AdminTabContents, AdminTabTriggers } from './admin/AdminTabs';
 import { useKafkaAdmin } from './admin/useKafkaAdmin';
+import { Badge } from '../components/ui/badge';
 import { ConnectionForm } from './ConnectionForm';
+import { ConnectionStatus } from './ConnectionStatus';
 import { LogFilePanel } from './LogFilePanel';
-import { MessagesPanel } from './MessagesPanel';
+import { MessagesPanel, START_FROM_LAST_COUNT } from './MessagesPanel';
 import { EMPTY_SEND_DRAFT, SendDraft, SendForm } from './SendForm';
+import { useNewMessageAnnouncement, useUnseenCount } from './useMessageCounters';
 import { useKafkaHost } from './useKafkaHost';
+import './kafkaUx.css';
 
+const MAX_BADGE_COUNT = 99;
 const DEFAULT_PROFILE_NAME = 'New Connection';
 
 function tombstoneDraftFields(message: KafkaMessage): Pick<SendDraft, 'value' | 'tombstone'> {
@@ -29,6 +34,8 @@ export function KafkaView() {
   const [tab, setTab] = useState('messages');
   const admin = useKafkaAdmin(draft);
   const [sendPending, setSendPending] = useState(false);
+  const announcement = useNewMessageAnnouncement(host.messages, host.ready);
+  const unseenCount = useUnseenCount(host.messages, tab === 'messages');
   const activeProfile = host.profiles.find((profile) => profile.id === host.activeProfileId);
 
   useEffect(() => {
@@ -52,6 +59,14 @@ export function KafkaView() {
     postKafkaMessage({ type: 'kafkaSend', request: buildSendJobRequest(generateId(), draft, current, headers) });
 
   const saveTemplate = (name: string) => postKafkaMessage({ type: 'kafkaSaveTemplate', template: templateFromDraft(generateId(), name, sendDraft) });
+
+  const connect = (profile: KafkaProfileDraft) => postKafkaMessage({ type: 'kafkaConnect', profile });
+
+  const startFromLast = () => {
+    const replayDraft = { ...draft, startMode: 'lastN' as const, startLastN: START_FROM_LAST_COUNT, fromBeginning: false };
+    setDraft(replayDraft);
+    connect(replayDraft);
+  };
 
   const useForSend = (message: KafkaMessage) => {
     setSendDraft({
@@ -77,29 +92,38 @@ export function KafkaView() {
           onSelectProfile={(profileId) => postKafkaMessage({ type: 'kafkaSelectProfile', profileId })}
           onSave={() => postKafkaMessage({ type: 'kafkaSaveProfile', profile: draft })}
           onDelete={() => postKafkaMessage({ type: 'kafkaDeleteProfile', profileId: draft.id })}
-          onConnect={() => postKafkaMessage({ type: 'kafkaConnect', profile: draft })}
-          onDisconnect={() => postKafkaMessage({ type: 'kafkaDisconnect' })}
         />
       </aside>
       <Tabs className="kafka-main" value={tab} onValueChange={setTab}>
+        <p className="kafka-sr-only" aria-live="polite">{announcement}</p>
+        <ConnectionStatus status={host.status} messages={host.messages} onConnect={() => connect(draft)} onDisconnect={() => postKafkaMessage({ type: 'kafkaDisconnect' })} />
         <TabsList>
-          <TabsTrigger value="messages">Messages</TabsTrigger>
+          <TabsTrigger value="messages">
+            Messages
+            {unseenCount > 0 && (
+              <Badge variant="info" className="kafka-unseen-badge" aria-label={`${unseenCount} unseen messages`}>
+                {unseenCount > MAX_BADGE_COUNT ? `${MAX_BADGE_COUNT}+` : unseenCount}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="send">Send</TabsTrigger>
           <TabsTrigger value="log">Log file</TabsTrigger>
           <AdminTabTriggers />
         </TabsList>
-        <TabsContent value="messages">
+        <TabsContent value="messages" forceMount>
           <MessagesPanel
             messages={host.messages}
             ui={host.ui}
             decodedValues={host.decodedValues}
             connected={host.status.state === 'connected'}
             produce={{ profile: draft, profiles: host.profiles, job: host.jobProgress }}
+            active={tab === 'messages'}
+            onStartFromLast={startFromLast}
             onUseForSend={useForSend}
             onResend={(message) => send({ ...EMPTY_SEND_DRAFT, topic: message.topic, key: message.key ?? '', ...tombstoneDraftFields(message) }, message.headers ?? {})}
           />
         </TabsContent>
-        <TabsContent value="send">
+        <TabsContent value="send" forceMount>
           <SendForm
             draft={sendDraft}
             result={host.produceResult}
@@ -114,7 +138,7 @@ export function KafkaView() {
             onDeleteTemplate={(templateId) => postKafkaMessage({ type: 'kafkaDeleteTemplate', templateId })}
           />
         </TabsContent>
-        <TabsContent value="log">
+        <TabsContent value="log" forceMount>
           <LogFilePanel logFile={host.logFile} />
         </TabsContent>
         <AdminTabContents admin={admin} draft={draft} onDraftChange={setDraft} onShowMessages={() => setTab('messages')} />

@@ -7,6 +7,7 @@ import { LabeledSwitch } from '../../components/LabeledSwitch';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { EmptyState } from '../EmptyState';
 import { AdminMessages } from './AdminMessages';
 import { GroupDetail } from './GroupDetail';
 import { ResetOffsetsDialog } from './ResetOffsetsDialog';
@@ -63,8 +64,15 @@ export function GroupsPanel({ admin }: Props) {
       </div>
       <div className="kafka-scroll">
         <AdminMessages state={state} area="groups" />
-        {state.groups === undefined && !state.errors.groups && <div className="kafka-empty">{loading ? 'Loading consumer groups…' : 'No data yet.'}</div>}
-        {state.groups?.length === 0 && <div className="kafka-empty">No consumer groups.</div>}
+        {state.groups === undefined && !state.errors.groups && (
+          <EmptyState
+            title={loading ? 'Loading consumer groups…' : 'No consumer groups loaded yet'}
+            hint="Connect to a broker, then load its consumer groups to inspect lag and members."
+            actionLabel="Load consumer groups"
+            onAction={refresh}
+          />
+        )}
+        {state.groups?.length === 0 && <EmptyState title="No consumer groups" hint="Groups appear here once a consumer has committed offsets." actionLabel="Refresh" onAction={refresh} />}
         {state.groups && state.groups.length > 0 && (
           <Table>
             <TableHeader>

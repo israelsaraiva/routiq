@@ -49,6 +49,8 @@ const AREA_BY_KIND: Record<KafkaAdminCommandKind, KafkaAdminArea> = {
   describeCluster: 'cluster',
 };
 
+const READ_KINDS: KafkaAdminCommandKind[] = ['listTopics', 'describeTopicConfigs', 'listGroups', 'describeGroup', 'describeCluster'];
+
 export function adminAreaOf(kind: KafkaAdminCommandKind): KafkaAdminArea {
   return AREA_BY_KIND[kind];
 }
@@ -84,12 +86,16 @@ export function reduceAdminState(state: KafkaAdminState, action: KafkaAdminActio
     case 'reset':
       return INITIAL_ADMIN_STATE;
     case 'sent':
-      return { ...state, pending: { ...state.pending, [action.requestId]: action.kind } };
+      return {
+        ...state,
+        pending: { ...state.pending, [action.requestId]: action.kind },
+        notices: READ_KINDS.includes(action.kind) ? state.notices : { ...state.notices, [adminAreaOf(action.kind)]: undefined },
+      };
     case 'result': {
       const { result } = action;
       const area = adminAreaOf(result.command);
       const settled = { ...state, pending: withoutRequest(state.pending, result.requestId), errors: { ...state.errors, [area]: result.error } };
-      return result.error ? settled : applyData({ ...settled, notices: { ...settled.notices, [area]: undefined } }, result);
+      return result.error ? settled : applyData(settled, result);
     }
   }
 }

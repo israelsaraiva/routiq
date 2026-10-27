@@ -1,6 +1,9 @@
-import { KafkaProfileDraft } from '../../shared/types';
+import { useEffect } from 'react';
+import { KafkaHostMessage, KafkaProfileDraft } from '../../shared/types';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
+import { postKafkaMessage } from '../vscodeApi';
 import { FormField } from './FormField';
 
 interface Props {
@@ -9,10 +12,23 @@ interface Props {
 }
 
 export function ProtobufFields({ draft, onChange }: Props) {
+  useEffect(() => {
+    const onMessage = ({ data }: MessageEvent<KafkaHostMessage>) => data?.type === 'kafkaProtoFilePicked' && onChange({ protobufFile: data.path });
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [onChange]);
+
   return (
     <>
       <FormField label="Protobuf .proto file (optional)">
-        {(id) => <Input id={id} value={draft.protobufFile ?? ''} placeholder="/path/to/messages.proto" onChange={(event) => onChange({ protobufFile: event.target.value })} />}
+        {(id) => (
+          <div className="kafka-inline-field">
+            <Input id={id} value={draft.protobufFile ?? ''} placeholder="/path/to/messages.proto" onChange={(event) => onChange({ protobufFile: event.target.value })} />
+            <Button variant="secondary" size="sm" onClick={() => postKafkaMessage({ type: 'kafkaPickProtoFile' })}>
+              Browse…
+            </Button>
+          </div>
+        )}
       </FormField>
       <FormField label="Protobuf message type">
         {(id) => <Input id={id} value={draft.protobufMessageType ?? ''} placeholder="pkg.OrderCreated" onChange={(event) => onChange({ protobufMessageType: event.target.value })} />}

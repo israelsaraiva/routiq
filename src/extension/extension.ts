@@ -27,6 +27,7 @@ import { convertStoredRequest } from './requestConversionCommands';
 import { RequestPanels } from './requestPanels';
 import { TreeFilter, pickRequestId } from './requestSearch';
 import { TreeAutoReveal } from './treeAutoReveal';
+import { configureOAuth } from './oauthTokens';
 import { SecretVault } from './secretVault';
 import { Storage } from './storage';
 
@@ -271,6 +272,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
   const cookieStore = new CookieStore(context.globalStorageUri.fsPath);
   const historyStore = new HistoryStore(context.globalStorageUri.fsPath);
   const vault = new SecretVault(context.secrets);
+  configureOAuth({ openBrowser: (url) => vscode.env.openExternal(vscode.Uri.parse(url)), tokenStore: context.secrets });
+  context.subscriptions.push({ dispose: () => configureOAuth(undefined) });
   await vault.load(storage.getCollections());
   const scriptConsent = new ScriptConsent(context.globalState);
   const panels = new RequestPanels(context.extensionUri, storage, historyStore, cookieStore, vault, new GraphqlSchemaStore(context.globalStorageUri.fsPath), scriptConsent);

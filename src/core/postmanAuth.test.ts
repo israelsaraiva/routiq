@@ -34,11 +34,23 @@ describe('postman oauth2 auth import', () => {
     expect(auth).toMatchObject({ grant: 'password', username: 'ada', password: 'pw' });
   });
 
-  it('warns about unsupported authorization_code grants, including when no grant is stored', () => {
-    const explicit = importAuthOf(oauth2({ grant_type: 'authorization_code', ...tokenSettings }));
-    expect(explicit.auth).toEqual({ type: 'none' });
-    expect(explicit.warnings[0]).toContain('OAuth 2.0 grant "authorization_code" is not supported');
-    expect(importAuthOf(oauth2({ ...tokenSettings })).warnings[0]).toContain('"authorization_code"');
+  it('imports authorization_code with auth url and redirect, defaulting to it when no grant is stored', () => {
+    const settings = { ...tokenSettings, authUrl: 'https://idp.test/authorize', redirect_uri: 'http://localhost:9000/cb' };
+    const expected = { grant: 'authorization_code', authUrl: 'https://idp.test/authorize', redirectUrl: 'http://localhost:9000/cb', usePkce: false };
+    expect(importAuthOf(oauth2({ grant_type: 'authorization_code', ...settings })).auth).toMatchObject(expected);
+    expect(importAuthOf(oauth2({ ...settings })).auth).toMatchObject(expected);
+  });
+
+  it('imports the PKCE variant and warns about a non-S256 challenge method', () => {
+    const settings = { grant_type: 'authorization_code_with_pkce', ...tokenSettings, authUrl: 'https://idp.test/authorize' };
+    expect(importAuthOf(oauth2({ ...settings, challengeAlgorithm: 'S256' }))).toMatchObject({ auth: { usePkce: true }, warnings: [] });
+    expect(importAuthOf(oauth2({ ...settings, challengeAlgorithm: 'plain' })).warnings[0]).toContain('"plain" PKCE challenge method');
+  });
+
+  it('warns about unsupported grants', () => {
+    const { auth, warnings } = importAuthOf(oauth2({ grant_type: 'implicit', ...tokenSettings }));
+    expect(auth).toEqual({ type: 'none' });
+    expect(warnings[0]).toContain('OAuth 2.0 grant "implicit" is not supported');
   });
 
   it('warns about query placement, custom header prefix and body client authentication', () => {
@@ -69,8 +81,13 @@ describe('postman digest and unsupported auth import', () => {
     expect(warnings[0]).toContain('Digest realm, algorithm, qop ignored');
   });
 
+  it('imports AWS Signature v4 settings and warns only about query-string signing', () => {
+    const values = { accessKey: 'AKIA', secretKey: 's', sessionToken: 't', region: 'eu-west-1', service: 'execute-api' };
+    expect(importAuthOf({ type: 'awsv4', awsv4: entries(values) })).toEqual({ auth: { type: 'awsv4', ...values }, warnings: [] });
+    expect(importAuthOf({ type: 'awsv4', awsv4: entries({ ...values, addAuthDataToQuery: 'true' }) }).warnings[0]).toContain('query string');
+  });
+
   it.each([
-    ['awsv4', 'AWS Signature v4', { accessKey: 'AKIA', secretKey: 's', region: 'eu-west-1', service: 'execute-api' }],
     ['hawk', 'Hawk', { authId: 'id', authKey: 'k' }],
     ['ntlm', 'NTLM', { username: 'u', password: 'p' }],
     ['edgegrid', 'Akamai EdgeGrid', { accessToken: 't' }],
@@ -96,7 +113,7 @@ describe('postman auth inheritance', () => {
       request('Top'),
       { name: 'Admin', auth: { type: 'basic', basic: entries({ username: 'root', password: 'pw' }) }, item: [request('InAdmin'), request('Override', bearer('own')), request('Open', { type: 'noauth' })] },
       { name: 'Plain', item: [request('InPlain')] },
-      { name: 'Aws', auth: { type: 'awsv4', awsv4: [] }, item: [request('Signed'), request('Inherit', { type: 'inherit' })] },
+      { name: 'Aws', auth: { type: 'hawk', hawk: [] }, item: [request('Signed'), request('Inherit', { type: 'inherit' })] },
     ],
   };
 
@@ -146,6 +163,17 @@ describe('postman auth export', () => {
     const { exported } = roundTrip({ type: 'oauth2', grant: 'password', tokenUrl: 't', clientId: 'i', clientSecret: 's', scope: '', username: 'u', password: 'p' });
     const values = Object.fromEntries(exported.item[0].request.auth.oauth2.map((entry: { key: string; value: string }) => [entry.key, entry.value]));
     expect(values).toMatchObject({ grant_type: 'password_credentials', addTokenTo: 'header', headerPrefix: 'Bearer', username: 'u', password: 'p' });
+  });
+
+  it('round-trips authorization_code with and without PKCE and AWS Signature v4', () => {
+    const code: Auth = {
+      type: 'oauth2', grant: 'authorization_code', tokenUrl: 'https://t', clientId: 'i', clientSecret: '', scope: 'a', username: '', password: '',
+      authUrl: 'https://a', redirectUrl: 'http://localhost:9000/cb', usePkce: false,
+    };
+    const aws: Auth = { type: 'awsv4', accessKey: 'AK', secretKey: 'SK', sessionToken: 'ST', region: 'eu-west-1', service: 'execute-api' };
+    expect(roundTrip(code).auth).toEqual(code);
+    expect(roundTrip({ ...code, usePkce: true }).auth).toEqual({ ...code, usePkce: true });
+    expect(roundTrip(aws).auth).toEqual(aws);
   });
 
   it('round-trips digest auth without producing warnings', () => {

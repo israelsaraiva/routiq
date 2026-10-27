@@ -14,7 +14,7 @@
 | **Scripts and tests** | Pre-request and post-response scripts, plus a collection/folder runner. |
 | **Import / export** | Routiq JSON, Postman v2.1, Insomnia, OpenAPI/Swagger and cURL; copy as cURL; convert between HTTP and GraphQL. |
 | **Kafka tooling** | Flows grouped by flowId, filters, produce/resend, Splunk log browsing, topics, consumer groups and cluster admin. |
-| **Everyday comfort** | Auth (bearer, basic, API key, OAuth 2.0, Digest), history, cookie jar, redirects, proxy and TLS options, pretty/raw responses with JSON path filter. |
+| **Everyday comfort** | Auth (bearer, basic, API key, OAuth 2.0 incl. authorization code + PKCE, Digest, AWS Signature v4), history, cookie jar, redirects, proxy and TLS options, pretty/raw responses with JSON path filter. |
 
 ## Install
 
@@ -50,6 +50,10 @@ Need more? Run **Routiq: Help** for a searchable guide and **Routiq: About** for
 | Consumer groups | Send to Kafka |
 | --- | --- |
 | ![Kafka consumer groups with lag](media/screenshots/kafka-groups.png) | ![Kafka send form](media/screenshots/kafka-send.png) |
+
+| Topics | Cluster |
+| --- | --- |
+| ![Kafka topics administration](media/screenshots/kafka-topics.png) | ![Kafka cluster brokers](media/screenshots/kafka-cluster.png) |
 
 | gRPC | Scripts and tests |
 | --- | --- |
@@ -137,7 +141,7 @@ Typing `{{` (or moving the caret into an unfinished `{{partial`) opens a list at
 
 ### Authentication
 
-OAuth 2.0 tokens are fetched by the extension host (client secret sent via HTTP Basic), cached in memory until shortly before expiry and refetched automatically on send; use **Fetch token** in the Auth tab to force a refresh. Digest auth (MD5/SHA-256, `qop=auth`) is applied by retrying once after a `401` challenge. Secrets are stored in the collection JSON file as plain text.
+OAuth 2.0 tokens are fetched by the extension host (client secret sent via HTTP Basic), cached in memory until shortly before expiry and refetched automatically on send; use **Fetch token** in the Auth tab to force a refresh. Digest auth (MD5/SHA-256, `qop=auth`) is applied by retrying once after a `401` challenge. Secrets are stored in the collection JSON file as plain text. The **authorization code** grant (optional PKCE) opens the browser and receives the redirect on a loopback server (free port, or a configured `http://localhost:PORT/path`); the token and refresh token are stored in VS Code secret storage and refreshed silently. **AWS Signature v4** signs every request, including redirect hops, from the access key, secret, optional session token, region and service; copy-as-cURL omits the signed headers.
 
 ### Import / Export
 

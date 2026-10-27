@@ -1,4 +1,5 @@
 import { Auth, KeyValue, MultipartField, RequestBody, RequestModel } from '../shared/types';
+import { AwsSigningSettings } from './awsSigV4';
 import { DigestCredentials } from './digest';
 import { activePairs, buildQueryString, buildUrl } from './url';
 import { substituteVariables } from './variables';
@@ -15,6 +16,7 @@ export interface PreparedRequest {
   multipart?: PreparedMultipartPart[];
   bodyFilePath?: string;
   digest?: DigestCredentials;
+  awsSigV4?: AwsSigningSettings;
 }
 
 export interface PrepareContext {
@@ -69,6 +71,22 @@ function digestCredentials(auth: Auth, values: Record<string, string>): DigestCr
     return undefined;
   }
   return { username: substituteVariables(auth.username, values), password: substituteVariables(auth.password, values) };
+}
+
+function awsSigningSettings(auth: Auth, values: Record<string, string>): AwsSigningSettings | undefined {
+  if (auth.type !== 'awsv4') {
+    return undefined;
+  }
+  const sessionToken = substituteVariables(auth.sessionToken, values).trim();
+  return {
+    credentials: {
+      accessKeyId: substituteVariables(auth.accessKey, values).trim(),
+      secretAccessKey: substituteVariables(auth.secretKey, values).trim(),
+      ...(sessionToken !== '' && { sessionToken }),
+    },
+    region: substituteVariables(auth.region, values).trim(),
+    service: substituteVariables(auth.service, values).trim(),
+  };
 }
 
 interface BuiltBody {
@@ -165,6 +183,10 @@ export function prepareRequest(
   const digest = digestCredentials(request.auth, values);
   if (digest) {
     prepared.digest = digest;
+  }
+  const awsSigV4 = awsSigningSettings(request.auth, values);
+  if (awsSigV4) {
+    prepared.awsSigV4 = awsSigV4;
   }
 
   if (METHODS_WITHOUT_BODY.includes(request.method)) {

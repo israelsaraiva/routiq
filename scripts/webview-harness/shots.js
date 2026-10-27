@@ -37,6 +37,8 @@ const shots = [
     await settle(page);
   } },
   { name: 'kafka-groups', view: 'kafka', width: 1200, height: 720, run: kafkaScenes.groups },
+  { name: 'kafka-topics', view: 'kafka', width: 1200, height: 720, run: kafkaScenes.topics },
+  { name: 'kafka-cluster', view: 'kafka', width: 1200, height: 720, run: kafkaScenes.cluster },
   { name: 'kafka-send', view: 'kafka', width: 1200, height: 720, run: kafkaScenes.send },
   { name: 'runner', view: 'runner', width: 800, height: 520, run: runnerScene },
 ];

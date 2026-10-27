@@ -146,10 +146,17 @@ describe('reduceAdminState', () => {
     expect(failed.errors.topics).toBeUndefined();
   });
 
-  it('keeps a notice for completed mutations and clears it on the next result', () => {
-    const done = reduceAdminState(INITIAL_ADMIN_STATE, { type: 'result', result: { requestId: 'r', command: 'deleteTopic', data: { kind: 'done', message: 'Deleted' } } });
-    expect(done.notices.topics).toBe('Deleted');
-    const next = reduceAdminState(done, { type: 'result', result: { requestId: 'r', command: 'listTopics', data: { kind: 'topics', topics: [] } } });
-    expect(next.notices.topics).toBeUndefined();
+  it('keeps a notice across the refresh that follows a mutation and clears it on the next mutation', () => {
+    const done = reduceAdminState(INITIAL_ADMIN_STATE, {
+      type: 'result',
+      result: { requestId: 'r', command: 'alterTopicConfigs', data: { kind: 'done', message: 'Updated 1 config(s) of "orders"' } },
+    });
+    const refreshing = reduceAdminState(done, { type: 'sent', requestId: 'r2', kind: 'describeTopicConfigs' });
+    const refreshed = reduceAdminState(refreshing, {
+      type: 'result',
+      result: { requestId: 'r2', command: 'describeTopicConfigs', data: { kind: 'topicConfigs', topic: 'orders', configs: [] } },
+    });
+    expect(refreshed.notices.topics).toBe('Updated 1 config(s) of "orders"');
+    expect(reduceAdminState(refreshed, { type: 'sent', requestId: 'r3', kind: 'deleteTopic' }).notices.topics).toBeUndefined();
   });
 });

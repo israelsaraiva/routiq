@@ -9,6 +9,7 @@ const postKafkaMessage = vi.fn();
 vi.mock('../vscodeApi', () => ({ postKafkaMessage: (message: unknown) => postKafkaMessage(message) }));
 
 import { AuthFields } from '../kafka/AuthFields';
+import { ProtobufFields } from '../kafka/ProtobufFields';
 import { StartPositionFields } from '../kafka/StartPositionFields';
 import { TruncationNotice } from '../kafka/TruncationNotice';
 import { VirtualList } from '../kafka/VirtualList';
@@ -81,5 +82,16 @@ describe('VirtualList', () => {
   it('windows large lists', () => {
     render(<VirtualList items={items} getKey={(item) => item.id} renderItem={(item) => <p key={item.id}>row {item.id}</p>} />);
     expect(screen.getAllByText(/^row /).length).toBeLessThan(items.length);
+  });
+});
+
+describe('ProtobufFields', () => {
+  it('asks the host for a .proto file and fills the path it returns', () => {
+    const onChange = vi.fn();
+    render(<ProtobufFields draft={draft()} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Browse…' }));
+    expect(postKafkaMessage).toHaveBeenCalledWith({ type: 'kafkaPickProtoFile' });
+    fireEvent(window, new MessageEvent('message', { data: { type: 'kafkaProtoFilePicked', path: '/schemas/orders.proto' } }));
+    expect(onChange).toHaveBeenCalledWith({ protobufFile: '/schemas/orders.proto' });
   });
 });

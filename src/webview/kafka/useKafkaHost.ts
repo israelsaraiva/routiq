@@ -51,6 +51,8 @@ export function reduceHostMessage(state: KafkaHostState, message: KafkaHostMessa
       return { ...state, produceResult: message.result };
     case 'kafkaLogFile':
       return { ...state, logFile: message.logFile };
+    case 'kafkaProtoFilePicked':
+      return state;
     case 'kafkaJobProgress':
       return { ...state, jobProgress: message.progress };
     case 'kafkaTemplates':

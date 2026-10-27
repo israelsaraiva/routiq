@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { OAuth2Auth } from '../shared/types';
-import { buildTokenRequest, isTokenFresh, parseTokenResponse, tokenAuthorizationValue, tokenCacheKey } from './oauth';
+import { buildAuthorizationUrl, buildCodeExchangeRequest, buildRefreshRequest, generatePkcePair, buildTokenRequest, isTokenFresh, parseTokenResponse, tokenAuthorizationValue, tokenCacheKey } from './oauth';
 
 const auth: OAuth2Auth = {
   type: 'oauth2',
@@ -53,5 +53,46 @@ describe('token freshness and usage', () => {
 
   it('varies cache key with resolved variables', () => {
     expect(tokenCacheKey(auth, { host: 'a' })).not.toBe(tokenCacheKey(auth, { host: 'b' }));
+  });
+});
+
+describe('authorization code helpers', () => {
+  const codeAuth: OAuth2Auth = { ...auth, grant: 'authorization_code', authUrl: '{{host}}/authorize?audience=api', redirectUrl: '', clientSecret: '', usePkce: true };
+
+  it('derives an S256 challenge from the verifier', () => {
+    const { verifier, challenge } = generatePkcePair(Buffer.from('a'.repeat(32)));
+    expect(verifier).toBe('YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE');
+    expect(challenge).toBe(generatePkcePair(Buffer.from('a'.repeat(32))).challenge);
+    expect(challenge).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  it('builds the authorization url keeping existing query parameters', () => {
+    const url = new URL(buildAuthorizationUrl(codeAuth, { host: 'http://idp' }, { redirectUri: 'http://127.0.0.1:1/callback', state: 's1', codeChallenge: 'ch' }));
+    expect(`${url.origin}${url.pathname}`).toBe('http://idp/authorize');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      audience: 'api',
+      response_type: 'code',
+      client_id: 'id',
+      redirect_uri: 'http://127.0.0.1:1/callback',
+      state: 's1',
+      scope: 'a b',
+      code_challenge: 'ch',
+      code_challenge_method: 'S256',
+    });
+  });
+
+  it('rejects an empty authorization url', () => {
+    expect(() => buildAuthorizationUrl({ ...codeAuth, authUrl: '' }, {}, { redirectUri: 'r', state: 's' })).toThrow('Authorization URL is empty');
+  });
+
+  it('exchanges the code with the verifier and sends public clients by id', () => {
+    const request = buildCodeExchangeRequest(codeAuth, { host: 'http://idp' }, { code: 'c', redirectUri: 'http://r', codeVerifier: 'v' });
+    expect(request.body).toBe('grant_type=authorization_code&code=c&redirect_uri=http%3A%2F%2Fr&code_verifier=v&client_id=id');
+    expect(request.headers['Authorization']).toBe('Basic aWQ6');
+  });
+
+  it('builds a refresh request and parses the refresh token', () => {
+    expect(buildRefreshRequest(codeAuth, {}, 'rt').body).toBe('grant_type=refresh_token&refresh_token=rt&scope=a%20b&client_id=id');
+    expect(parseTokenResponse('{"access_token":"t","refresh_token":"rt"}', 0).refreshToken).toBe('rt');
   });
 });

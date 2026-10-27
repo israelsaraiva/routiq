@@ -5,6 +5,7 @@ import { Icon } from '../../Icon';
 import { LabeledSwitch } from '../../components/LabeledSwitch';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { EmptyState } from '../EmptyState';
 import { AdminMessages } from './AdminMessages';
 import { CreateTopicDialog } from './CreateTopicDialog';
 import { TopicTable } from './TopicTable';
@@ -45,7 +46,9 @@ export function TopicsPanel({ admin, onAddToListener, onConsume }: Props) {
       </div>
       <div className="kafka-scroll">
         <AdminMessages state={state} area="topics" />
-        {state.topics === undefined && !state.errors.topics && <div className="kafka-empty">{loading ? 'Loading topics…' : 'No data yet.'}</div>}
+        {state.topics === undefined && !state.errors.topics && (
+          <EmptyState title={loading ? 'Loading topics…' : 'No topics loaded yet'} hint="Connect to a broker, then load its topics to browse, configure or consume them." actionLabel="Load topics" onAction={refresh} />
+        )}
         {state.topics !== undefined && (
           <TopicTable
             topics={visible}

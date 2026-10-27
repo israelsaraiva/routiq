@@ -1,0 +1,43 @@
+.kafka-statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rq-space-3); padding: var(--rq-space-2) var(--rq-space-3); border-bottom: 1px solid var(--border); }
+.kafka-status { display: inline-flex; align-items: center; gap: var(--rq-space-2); font-weight: 600; --status-color: var(--vscode-disabledForeground, var(--muted-foreground)); color: var(--status-color); }
+.kafka-status[data-state='connected'] { --status-color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, var(--success))); }
+.kafka-status[data-state='connecting'], .kafka-status[data-state='reconnecting'] { --status-color: var(--vscode-editorWarning-foreground, var(--vscode-charts-yellow, var(--warning))); }
+.kafka-status[data-state='error'] { --status-color: var(--vscode-errorForeground, var(--destructive)); }
+.kafka-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-color); }
+.kafka-status[data-state='connecting'] .kafka-status-dot, .kafka-status[data-state='reconnecting'] .kafka-status-dot { animation: kafka-pulse 1s ease-in-out infinite; }
+.kafka-status-label { color: var(--foreground); }
+.kafka-status-metrics { display: inline-flex; gap: var(--rq-space-3); margin-right: auto; color: var(--muted-foreground); font-size: 0.9em; }
+.kafka-unseen-badge { margin-left: var(--rq-space-1); }
+.kafka-options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rq-space-3); padding: var(--rq-space-2) var(--rq-space-3); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--muted); }
+.kafka-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.kafka-empty-state { display: flex; flex-direction: column; align-items: center; gap: var(--rq-space-2); padding: var(--rq-space-4); text-align: center; }
+.kafka-empty-title { margin: 0; font-weight: 600; }
+.kafka-flows { gap: var(--rq-space-2); }
+.kafka-flow-steps { position: relative; display: flex; flex-direction: column; margin-left: var(--rq-space-3); border-left: 2px solid var(--vscode-editorIndentGuide-activeBackground1, var(--border)); }
+.kafka-message { position: relative; }
+.kafka-message:hover, .kafka-message[data-active='true'] { background: var(--vscode-list-hoverBackground, var(--accent)); }
+.kafka-message[data-active='true'] { border-left-color: var(--vscode-focusBorder, var(--info)); }
+.kafka-message[data-expanded='true'] { background: var(--vscode-list-inactiveSelectionBackground, var(--muted)); }
+.kafka-message[data-tombstone='true'] { border-left-style: dashed; border-left-color: var(--vscode-editorWarning-foreground, var(--warning)); }
+.kafka-flow-marker { position: absolute; left: -7px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--vscode-editorIndentGuide-activeBackground1, var(--info)); border: 1px solid var(--background); }
+.kafka-flow-delta { padding: 0 var(--rq-space-3); color: var(--muted-foreground); font-size: 0.8em; font-family: var(--rq-mono); line-height: 1.4; }
+.kafka-row-main { display: flex; align-items: center; flex: 1 1 auto; gap: var(--rq-space-2); min-width: 0; cursor: pointer; }
+.kafka-row-main > * { flex: 0 0 auto; }
+.kafka-row-main .kafka-preview { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--rq-mono); color: var(--muted-foreground); }
+.kafka-preview[data-tombstone='true'] { font-style: italic; color: var(--vscode-editorWarning-foreground, var(--warning)); }
+.kafka-key { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--rq-mono); font-weight: 600; }
+.kafka-row-tags { display: inline-flex; gap: var(--rq-space-1); }
+.kafka-chip { padding: 0 6px; border: 1px solid var(--vscode-contrastBorder, transparent); border-radius: 10px; font-family: var(--rq-mono); font-size: 0.8em; line-height: 18px; white-space: nowrap; background: var(--vscode-badge-background, var(--muted)); color: var(--vscode-badge-foreground, var(--foreground)); }
+.kafka-chip-topic { max-width: 20ch; overflow: hidden; text-overflow: ellipsis; background: transparent; color: var(--foreground); border: 1px solid var(--border); }
+.kafka-chip-tombstone { background: transparent; color: var(--vscode-editorWarning-foreground, var(--warning)); border: 1px dashed var(--vscode-editorWarning-foreground, var(--warning)); }
+.kafka-message-actions { opacity: 0; }
+.kafka-message:hover .kafka-message-actions, .kafka-message:focus-within .kafka-message-actions, .kafka-message[data-active='true'] .kafka-message-actions { opacity: 1; }
+.kafka-flow-header .kafka-message-actions { opacity: 1; }
+.kafka-view button:focus-visible, .kafka-view input:focus-visible, .kafka-view [role='tab']:focus-visible, .kafka-view [role='checkbox']:focus-visible, .kafka-view [role='switch']:focus-visible, .kafka-view textarea:focus-visible, .kafka-view [role='combobox']:focus-visible { outline: 2px solid var(--vscode-focusBorder, currentColor); outline-offset: 1px; }
+.kafka-tree-string { color: var(--vscode-charts-green, var(--vscode-terminal-ansiGreen)); }
+.kafka-tree-number { color: var(--vscode-charts-blue, var(--vscode-terminal-ansiBlue)); }
+.kafka-tree-boolean { color: var(--vscode-charts-orange, var(--vscode-terminal-ansiYellow)); }
+.kafka-tree-null { color: var(--vscode-charts-purple, var(--vscode-terminal-ansiMagenta)); font-style: italic; }
+.kafka-tree-value { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.kafka-send-preview { display: flex; flex-direction: column; gap: var(--rq-space-2); border: 1px dashed var(--border); border-radius: var(--radius); padding: var(--rq-space-2); }
+@media (prefers-reduced-motion: reduce) { .kafka-status-dot { animation: none !important; } }

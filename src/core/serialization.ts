@@ -1,4 +1,4 @@
-import { Auth, COLLECTION_FILE_VERSION, Collection, CollectionEntry, Environment, GrpcConfig, KeyValue, RequestBody, RequestModel } from '../shared/types';
+import { Auth, OAuth2Auth, COLLECTION_FILE_VERSION, Collection, CollectionEntry, Environment, GrpcConfig, KeyValue, RequestBody, RequestModel } from '../shared/types';
 import { isFolder } from './collectionTree';
 
 function orderKeyValues(pairs: KeyValue[]): KeyValue[] {
@@ -9,6 +9,13 @@ function orderVariables(variables: KeyValue[]): KeyValue[] {
   return variables.map(({ key, value, enabled, secret }) =>
     secret ? { key, value: '', enabled, secret: true } : { key, value, enabled },
   );
+}
+
+function authorizationCodeFields(auth: OAuth2Auth): Pick<OAuth2Auth, 'authUrl' | 'redirectUrl' | 'usePkce'> {
+  if (auth.grant !== 'authorization_code') {
+    return {};
+  }
+  return { authUrl: auth.authUrl ?? '', redirectUrl: auth.redirectUrl ?? '', usePkce: auth.usePkce ?? false };
 }
 
 function orderAuth(auth: Auth): Auth {
@@ -24,9 +31,13 @@ function orderAuth(auth: Auth): Auth {
   if (auth.type === 'digest') {
     return { type: 'digest', username: auth.username, password: auth.password };
   }
+  if (auth.type === 'awsv4') {
+    const { accessKey, secretKey, sessionToken, region, service } = auth;
+    return { type: 'awsv4', accessKey, secretKey, sessionToken, region, service };
+  }
   if (auth.type === 'oauth2') {
     const { grant, tokenUrl, clientId, clientSecret, scope, username, password } = auth;
-    return { type: 'oauth2', grant, tokenUrl, clientId, clientSecret, scope, username, password };
+    return { type: 'oauth2', grant, tokenUrl, clientId, clientSecret, scope, username, password, ...authorizationCodeFields(auth) };
   }
   return { type: 'none' };
 }

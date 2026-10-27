@@ -1,11 +1,10 @@
-import { FloppyDiskIcon, PlayIcon, StopIcon } from '@hugeicons/core-free-icons';
+import { FloppyDiskIcon } from '@hugeicons/core-free-icons';
 import { DEFAULT_BROKER, LOCAL_TEST_TOPICS } from '../../core/kafka/connection';
 import { KafkaCollectionOption, KafkaProfileDraft, KafkaProfileView, KafkaStatus } from '../../shared/types';
 import { Icon } from '../Icon';
 import { ConfirmAction } from '../components/ConfirmAction';
 import { LabeledSwitch } from '../components/LabeledSwitch';
 import { OptionSelect } from '../components/OptionSelect';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { AuthFields, storedSecretsOf } from './AuthFields';
@@ -14,7 +13,6 @@ import { ProtobufFields } from './ProtobufFields';
 import { StartPositionFields } from './StartPositionFields';
 
 const NO_COLLECTION = '__none__';
-const STATUS_VARIANT = { disconnected: 'secondary', connecting: 'warning', connected: 'success', reconnecting: 'warning', error: 'destructive' } as const;
 
 interface Props {
   draft: KafkaProfileDraft;
@@ -26,11 +24,9 @@ interface Props {
   onSelectProfile: (profileId: string) => void;
   onSave: () => void;
   onDelete: () => void;
-  onConnect: () => void;
-  onDisconnect: () => void;
 }
 
-export function ConnectionForm({ draft, profiles, collections, status, hasStoredPassword, onChange, onSelectProfile, onSave, onDelete, onConnect, onDisconnect }: Props) {
+export function ConnectionForm({ draft, profiles, collections, status, hasStoredPassword, onChange, onSelectProfile, onSave, onDelete }: Props) {
   const patch = (changes: Partial<KafkaProfileDraft>) => onChange({ ...draft, ...changes });
   const isConnected = status.state === 'connected' || status.state === 'connecting' || status.state === 'reconnecting';
   const profileOptions = profiles.map((profile) => ({ value: profile.id, label: profile.name }));
@@ -38,10 +34,6 @@ export function ConnectionForm({ draft, profiles, collections, status, hasStored
 
   return (
     <form className="kafka-connection" onSubmit={(event) => event.preventDefault()}>
-      <div className="kafka-status-row">
-        <Badge variant={STATUS_VARIANT[status.state]}>{status.state}</Badge>
-        {status.detail && <span className="kafka-status-detail">{status.detail}</span>}
-      </div>
       {profiles.length > 0 && (
         <FormField label="Saved connection">
           {() => <OptionSelect value={draft.id} options={profileOptions} onValueChange={onSelectProfile} ariaLabel="Saved connection" />}
@@ -94,15 +86,6 @@ export function ConnectionForm({ draft, profiles, collections, status, hasStored
         )}
       </FormField>
       <div className="kafka-actions">
-        {isConnected ? (
-          <Button variant="destructive" onClick={onDisconnect}>
-            <Icon icon={StopIcon} /> {status.state === 'reconnecting' ? 'Stop reconnecting' : 'Disconnect'}
-          </Button>
-        ) : (
-          <Button onClick={onConnect}>
-            <Icon icon={PlayIcon} /> Connect
-          </Button>
-        )}
         <Button variant="secondary" onClick={onSave}>
           <Icon icon={FloppyDiskIcon} /> Save
         </Button>

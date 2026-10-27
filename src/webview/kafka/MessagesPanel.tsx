@@ -1,39 +1,49 @@
 import { Delete02Icon, PauseIcon, PlayIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { EMPTY_FILTER } from '../../core/kafka/messageFilter';
 import { groupByFlow, isLinkedFlow, uniqueTopics } from '../../core/kafka/flowGroups';
 import { KafkaDecodedValue, KafkaUiState } from '../../shared/kafkaMessageTypes';
 import { KafkaMessage } from '../../shared/types';
 import { Icon } from '../Icon';
 import { ConfirmAction } from '../components/ConfirmAction';
-import { LabeledSwitch } from '../components/LabeledSwitch';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { postKafkaMessage } from '../vscodeApi';
+import { EmptyState } from './EmptyState';
 import { ExperienceHeader } from './ExperienceHeader';
 import { FlowGroupList } from './FlowGroupList';
 import { MessageDisplayContext } from './MessageDisplayContext';
+import { MessageNavContext, useMessageNavState } from './MessageNav';
+import { MessagesOptions, OptionsToggle, useOptionsOpen } from './MessagesOptions';
 import { copyFlow, copyMessage, copyMessages, downloadFlow } from './flowActions';
 import { ProduceActions, ProduceContext } from './ProduceActions';
 import { useMessageExperience } from './useMessageExperience';
 import { useMessageSelection } from './useMessageSelection';
+import { useMessageShortcuts } from './useMessageShortcuts';
+
+export const START_FROM_LAST_COUNT = 10;
 
 interface Props {
   messages: KafkaMessage[];
   connected: boolean;
   onUseForSend: (message: KafkaMessage) => void;
   onResend: (message: KafkaMessage) => void;
+  onStartFromLast?: () => void;
+  active?: boolean;
   produce?: ProduceContext;
   ui?: KafkaUiState;
   decodedValues?: Record<string, KafkaDecodedValue>;
 }
 
-export function MessagesPanel({ messages, connected, onUseForSend, onResend, produce, ui, decodedValues }: Props) {
+export function MessagesPanel({ messages, connected, onUseForSend, onResend, onStartFromLast, active = true, produce, ui, decodedValues }: Props) {
   const experience = useMessageExperience({ messages, hostUi: ui, decodedValues });
   const { topic, setTopic } = experience;
   const [frozen, setFrozen] = useState<KafkaMessage[] | null>(null);
   const [followNewest, setFollowNewest] = useState(true);
   const scroller = useRef<HTMLDivElement>(null);
   const selection = useMessageSelection();
+  const root = useRef<HTMLDivElement>(null);
+  const [optionsOpen, setOptionsOpen] = useOptionsOpen();
 
   const displayed = frozen ?? messages;
   const visible = useMemo(() => experience.apply(displayed), [displayed, experience.apply]);
@@ -42,6 +52,16 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, pro
   const pendingCount = frozen ? messages.filter((message) => !frozen.some((known) => known.id === message.id)).length : 0;
   const linkedCount = groups.filter((group) => isLinkedFlow(group.flowId)).length;
   const selectedMessages = visible.filter((message) => selection.selectedIds.has(message.id));
+  const orderedIds = useMemo(() => groups.flatMap((group) => group.messages.map((message) => message.id)), [groups]);
+  const nav = useMessageNavState(orderedIds);
+
+  useMessageShortcuts({
+    active,
+    onFocusFilter: () => root.current?.querySelector<HTMLInputElement>('input[aria-label="Search messages"]')?.focus(),
+    onTogglePause: () => setFrozen(frozen ? null : messages),
+    onMove: nav.move,
+    onClose: nav.collapse,
+  });
 
   useEffect(() => {
     followNewest && !frozen && scroller.current && (scroller.current.scrollTop = 0);
@@ -55,13 +75,13 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, pro
 
   return (
     <MessageDisplayContext.Provider value={experience.display}>
-    <div className="kafka-messages">
+    <MessageNavContext.Provider value={nav}>
+    <div ref={root} className="kafka-messages">
       <ExperienceHeader experience={experience} />
       <div className="kafka-toolbar">
         <Button variant="secondary" size="sm" onClick={() => setFrozen(frozen ? null : messages)}>
           <Icon icon={frozen ? PlayIcon : PauseIcon} /> {frozen ? `Resume${pendingCount > 0 ? ` (${pendingCount} new)` : ''}` : 'Pause'}
         </Button>
-        <LabeledSwitch label="Follow newest" checked={followNewest} onCheckedChange={setFollowNewest} />
         {produce && <ProduceActions context={produce} visible={visible} selected={selectedMessages} />}
         <ConfirmAction
           trigger={
@@ -74,7 +94,16 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, pro
           confirmLabel="Clear"
           onConfirm={() => postKafkaMessage({ type: 'kafkaClearMessages' })}
         />
+        <OptionsToggle open={optionsOpen} onToggle={() => setOptionsOpen(!optionsOpen)} />
       </div>
+      {optionsOpen && (
+        <MessagesOptions
+          followNewest={followNewest}
+          onFollowNewestChange={setFollowNewest}
+          viewMode={experience.display.viewMode}
+          onViewModeChange={experience.display.onViewModeChange}
+        />
+      )}
       <div className="kafka-stats">
         <Badge variant="outline">{groups.length} flows</Badge>
         <Badge variant="outline">{visible.length} messages</Badge>
@@ -109,7 +138,12 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, pro
       </div>
       <div ref={scroller} className="kafka-scroll">
         {groups.length === 0 ? (
-          <p className="kafka-empty">{emptyText(connected, messages.length > 0)}</p>
+          <MessagesEmptyState
+            connected={connected}
+            hasMessages={messages.length > 0}
+            onResetFilter={() => experience.setFilter(EMPTY_FILTER)}
+            onStartFromLast={onStartFromLast}
+          />
         ) : (
           <FlowGroupList
             groups={groups}
@@ -126,15 +160,33 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, pro
         )}
       </div>
     </div>
+    </MessageNavContext.Provider>
     </MessageDisplayContext.Provider>
   );
 }
 
-function emptyText(connected: boolean, hasMessages: boolean): string {
+interface EmptyProps {
+  connected: boolean;
+  hasMessages: boolean;
+  onResetFilter: () => void;
+  onStartFromLast?: () => void;
+}
+
+function MessagesEmptyState({ connected, hasMessages, onResetFilter, onStartFromLast }: EmptyProps) {
   if (hasMessages) {
-    return 'No messages match the current search.';
+    return <EmptyState title="No messages match the current search" hint="Adjust the search or filters to see more." actionLabel="Reset filter" onAction={onResetFilter} />;
   }
-  return connected ? 'Waiting for messages…' : 'Connect to a broker to start listening.';
+  if (connected) {
+    return <EmptyState title="Waiting for messages…" hint="Messages appear here as they arrive on the subscribed topics." />;
+  }
+  return (
+    <EmptyState
+      title="Not listening yet"
+      hint="Connect to a broker to start listening, or replay recent history to see messages right away."
+      actionLabel={`Start from last ${START_FROM_LAST_COUNT} messages`}
+      onAction={onStartFromLast}
+    />
+  );
 }
 
 interface TopicChipsProps {

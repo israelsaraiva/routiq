@@ -6,6 +6,7 @@ import { prependMessages, removeMessages } from '../core/kafka/messageList';
 import { DEFAULT_MAX_MESSAGE_BYTES_DISPLAYED, limitMessageSizes } from '../core/kafka/truncation';
 import { substituteVariables } from '../core/variables';
 import { KafkaHostMessage, KafkaMessage, KafkaProduceRequest, KafkaProfileDraft, KafkaStatus, KafkaWebviewMessage } from '../shared/types';
+import { pickProtoFile } from './filePicker';
 import { KafkaAdminService, createKafkaAdmin } from './kafkaAdmin';
 import { KafkaAdminController } from './kafkaAdminController';
 import { KafkaClientFactory, createKafkaClient } from './kafkaClient';
@@ -171,6 +172,8 @@ class KafkaPanel implements vscode.Disposable {
         return this.importLogFile();
       case 'kafkaClearLogFile':
         return this.clearLogFile();
+      case 'kafkaPickProtoFile':
+        return this.pickProtoFile();
       case 'kafkaSaveFile':
         return this.saveFile(message.suggestedName, message.content);
       case 'kafkaCopy':
@@ -344,6 +347,11 @@ class KafkaPanel implements vscode.Disposable {
     const logFile = await readLogFileAt(file);
     logFile && (await this.dependencies.history.rememberLogFile(file.fsPath));
     post(this.panel, { type: 'kafkaLogFile', logFile });
+  }
+
+  private async pickProtoFile(): Promise<void> {
+    const path = await pickProtoFile();
+    path && post(this.panel, { type: 'kafkaProtoFilePicked', path });
   }
 
   private async clearLogFile(): Promise<void> {

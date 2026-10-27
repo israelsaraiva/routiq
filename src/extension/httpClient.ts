@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { Agent, Dispatcher, ProxyAgent, buildConnector, fetch } from 'undici';
+import { SignableBody, signAwsRequest } from '../core/awsSigV4';
 import { buildDigestAuthorization, digestUriFromUrl, parseDigestChallenge } from '../core/digest';
 import { ADDRESS_FALLBACK_TIMEOUT_MS, NetworkSettings, effectiveConnectTimeoutMs } from '../core/network';
 import { NetworkErrorKind, classifyError, resolveTimeoutKind, shapeOf, timeoutMessage, usesVsCodeNetworking, withRoutingHint } from '../core/networkErrors';
@@ -7,7 +8,7 @@ import { PreparedRequest } from '../core/requestBuilder';
 import { resolveRedirect } from '../core/redirects';
 import { ResponseModel, ResponseTiming } from '../shared/types';
 import { sendViaNode, TransportResponse } from './nodeTransport';
-import { buildPayload } from './requestPayload';
+import { FetchPayload, buildPayload } from './requestPayload';
 
 export interface CookieSession {
   headerFor(url: string): string | undefined;
@@ -122,6 +123,24 @@ export function withDefaultHeaders(headers: Record<string, string>): Record<stri
   return { ...Object.fromEntries(missing), ...headers };
 }
 
+function signableBodyOf(body: FetchPayload['body']): SignableBody {
+  return body instanceof FormData ? 'UNSIGNED-PAYLOAD' : body;
+}
+
+function withAwsSignature(prepared: PreparedRequest, payload: FetchPayload, headers: Record<string, string>): Record<string, string> {
+  if (!prepared.awsSigV4) {
+    return headers;
+  }
+  return signAwsRequest({
+    method: prepared.method,
+    url: prepared.url,
+    headers,
+    body: signableBodyOf(payload.body),
+    settings: prepared.awsSigV4,
+    now: new Date(),
+  });
+}
+
 async function fetchOnce(
   prepared: PreparedRequest,
   headers: Record<string, string>,
@@ -129,7 +148,8 @@ async function fetchOnce(
   signal: AbortSignal,
 ): Promise<TransportResponse> {
   const payload = await buildPayload({ ...prepared, headers });
-  const headersWithCookies = withDefaultHeaders(withCookieHeader(payload.headers, options.cookies?.headerFor(prepared.url)));
+  const unsigned = withDefaultHeaders(withCookieHeader(payload.headers, options.cookies?.headerFor(prepared.url)));
+  const headersWithCookies = withAwsSignature(prepared, payload, unsigned);
   const response = await sendViaTransport(prepared, headersWithCookies, payload.body, options, signal);
   options.cookies?.store(prepared.url, response.headers.getSetCookie());
   return response;

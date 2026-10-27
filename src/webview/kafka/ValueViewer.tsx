@@ -6,17 +6,10 @@ import { KafkaMessageViewMode, KafkaValueFormat } from '../../shared/kafkaMessag
 import { KafkaMessage } from '../../shared/types';
 import { OptionSelect } from '../components/OptionSelect';
 import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
 import { postKafkaMessage } from '../vscodeApi';
 import { HighlightedText } from './HighlightedText';
 import { JsonTree } from './JsonTree';
 import { useMessageDisplay } from './MessageDisplayContext';
-
-const VIEW_MODES: Array<{ mode: KafkaMessageViewMode; label: string }> = [
-  { mode: 'tree', label: 'Tree' },
-  { mode: 'text', label: 'Text' },
-  { mode: 'raw', label: 'Raw' },
-];
 
 function copyText(text: string): void {
   postKafkaMessage({ type: 'kafkaCopy', text });
@@ -36,7 +29,7 @@ function TombstoneValue() {
 }
 
 function DecodedValueViewer({ message }: { message: KafkaMessage }) {
-  const { viewMode, onViewModeChange, decodedValues, onDecode, highlightTerm } = useMessageDisplay();
+  const { viewMode, decodedValues, onDecode, highlightTerm } = useMessageDisplay();
   const [format, setFormat] = useState<KafkaValueFormat>('auto');
   const hostDecoded = needsHostDecoding(format, message) ? decodedValues[message.id] : undefined;
   const hostPending = needsHostDecoding(format, message) && !hostDecoded;
@@ -54,13 +47,6 @@ function DecodedValueViewer({ message }: { message: KafkaMessage }) {
       <div className="kafka-value-header">
         <h4 className="kafka-section-title">Value</h4>
         <OptionSelect value={format} options={VALUE_FORMAT_OPTIONS} onValueChange={setFormat} ariaLabel="Value as" className="kafka-value-format" />
-        <div className="kafka-value-modes" role="group" aria-label="Value view mode">
-          {VIEW_MODES.map(({ mode, label }) => (
-            <Button key={mode} variant={viewMode === mode ? 'default' : 'secondary'} size="sm" aria-pressed={viewMode === mode} onClick={() => onViewModeChange(mode)}>
-              {label}
-            </Button>
-          ))}
-        </div>
         {message.valueFormat && <Badge variant="info">{message.schemaId === undefined ? message.valueFormat : `${message.valueFormat} #${message.schemaId}`}</Badge>}
       </div>
       {decodeIssue && <p className="kafka-error-box">{decodeIssue}</p>}

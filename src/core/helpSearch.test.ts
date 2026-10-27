@@ -43,4 +43,11 @@ describe('searchHelp', () => {
     const ids = HELP_SECTIONS.flatMap((section) => [section.id, ...section.items.map((item) => item.id)]);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  it('documents Kafka value decoding and replay', () => {
+    const itemIds = (query: string) => searchHelp(HELP_SECTIONS, query).flatMap((section) => section.items.map((item) => item.id));
+    expect(itemIds('avro schema registry')).toContain('kafka-decoding');
+    expect(itemIds('tombstone')).toContain('kafka-decoding');
+    expect(itemIds('replay dry run')).toContain('kafka-filters-replay');
+  });
 });

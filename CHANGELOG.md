@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Kafka UI redesign: status bar, collapsible options, dense message rows, flow connectors, theme-aware colours, empty states, keyboard shortcuts, send preview, unseen badge.
+- Kafka: Browse for .proto, config-update notice persists, decoding and filter help, topics/cluster screenshots.
+- Auth: AWS Signature v4 and OAuth2 Authorization Code (+PKCE) with Postman import/export.
+
 ## 0.4.0
 
 - Kafka: protobuf decoding (Schema Registry and local .proto), tombstone fidelity, topic config editing and partition increase, CSV import, broker version hint.

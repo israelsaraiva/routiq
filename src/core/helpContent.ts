@@ -89,8 +89,8 @@ const REQUESTS_AND_TABS: HelpSection = {
       id: 'auth-types',
       title: 'Authentication types',
       body: [
-        'None, Bearer token, Basic Auth, API Key (header or query param), OAuth 2.0 (client credentials or password grant) and Digest Auth.',
-        'OAuth 2.0 tokens are fetched by the extension and refreshed on send; use Fetch token in the Auth tab to force a refresh. Digest auth is applied after a 401 challenge.',
+        'None, Bearer token, Basic Auth, API Key (header or query param), OAuth 2.0 (authorization code with optional PKCE, client credentials or password grant), Digest Auth and AWS Signature v4.',
+        'OAuth 2.0 tokens are fetched by the extension and refreshed on send; use Fetch token in the Auth tab to force a refresh. Digest auth is applied after a 401 challenge. The authorization code grant opens your browser and listens on a local loopback redirect (a free port, or the http://localhost:PORT/path you set); its token and refresh token are kept in VS Code secret storage. AWS Signature v4 signs each request (and each redirect hop) with the access key, secret, optional session token, region and service.',
         'Credentials entered in the Auth tab are stored in the collection file as plain text; use secret variables such as {{token}} instead.',
       ],
       keywords: ['bearer', 'basic', 'oauth', 'digest', 'api key', 'token'],
@@ -515,6 +515,26 @@ const KAFKA: HelpSection = {
         'The Send tab produces a message with topic, optional key, headers (a JSON object) and value. "Use for Send" copies a received message into the form and "Resend" produces it again.',
       ],
       keywords: ['produce', 'send', 'resend', 'headers'],
+    },
+    {
+      id: 'kafka-decoding',
+      title: 'Decoding values',
+      body: [
+        'The "Value as" selector of a message switches between Auto, JSON, Text, Hex, Base64, Avro and Protobuf. Auto detects JSON and Schema Registry framed Avro; Hex and Base64 show the raw bytes. Tombstones (records with a null value) are labelled as such instead of showing an empty value.',
+        'Avro: set the Schema Registry URL (and optional username/password) in the connection. Messages in the Confluent wire format (magic byte plus schema id) are decoded with the schema fetched from the registry.',
+        'Protobuf: pick a local .proto file with Browse…, then set the message type (pkg.Type), or one type per topic as topic=pkg.Type lines. Choose Protobuf in "Value as" to decode.',
+      ],
+      keywords: ['avro', 'protobuf', 'schema registry', 'hex', 'base64', 'tombstone', 'decode', 'value as', 'compression', 'proto'],
+    },
+    {
+      id: 'kafka-filters-replay',
+      title: 'Filters, replay and export',
+      body: [
+        'Filters combine text search, a JSON path condition ($.status == \'FAILED\'), header key/value, partition, a from/to time range and errors only. Name a filter to save it and reuse it later.',
+        'Replay produces the selected messages to another connection or topic, with an optional partition, rate limit and original timestamps; a dry run previews the result and replaying into the source topic needs an explicit acknowledgement. Read-only connections never produce.',
+        'Export writes the messages as JSON, NDJSON or CSV; the Log file tab opens Routiq exports again.',
+      ],
+      keywords: ['filter', 'jsonpath', 'replay', 'export', 'import', 'csv', 'ndjson', 'start position', 'offset', 'timestamp', 'read-only'],
     },
     {
       id: 'kafka-log-file',

@@ -1,5 +1,6 @@
 import { ArrowDown01Icon, ArrowRight01Icon, Copy01Icon, Delete02Icon, Download01Icon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
+import { formatTimeDelta } from '../../core/kafka/timeDelta';
 import { FlowGroup, flowDurationSeconds, isLinkedFlow } from '../../core/kafka/flowGroups';
 import { KafkaMessage } from '../../shared/types';
 import { ConfirmAction } from '../components/ConfirmAction';
@@ -87,16 +88,29 @@ function FlowGroupSection({ group, collapsed, selectedIds, onToggleCollapsed, on
           )}
         </div>
       </header>
-      {!collapsed &&
-        group.messages.map((message) => (
-          <MessageCard
-            key={message.id}
-            message={message}
-            selected={selectedIds.has(message.id)}
-            onSelectedChange={(selected) => onToggleSelected([message.id], selected)}
-            {...messageActions}
-          />
-        ))}
+      {!collapsed && (
+        <div className="kafka-flow-steps">
+          {group.messages.map((message, index) => (
+            <Fragment key={message.id}>
+              {index > 0 && <FlowDelta previous={group.messages[index - 1]} next={message} />}
+              <MessageCard
+                message={message}
+                selected={selectedIds.has(message.id)}
+                onSelectedChange={(selected) => onToggleSelected([message.id], selected)}
+                {...messageActions}
+              />
+            </Fragment>
+          ))}
+        </div>
+      )}
     </section>
+  );
+}
+
+function FlowDelta({ previous, next }: { previous: KafkaMessage; next: KafkaMessage }) {
+  return (
+    <div className="kafka-flow-delta" aria-label="Time since previous step">
+      {formatTimeDelta(next.timestamp - previous.timestamp)}
+    </div>
   );
 }

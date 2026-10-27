@@ -24,7 +24,7 @@
 .kafka-rule-main, .kafka-rule-options { display: flex; flex-wrap: wrap; gap: var(--rq-space-2); align-items: center; }
 .kafka-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--rq-space-2); font-family: var(--vscode-editor-font-family, monospace); }
 .kafka-compare-pane { overflow: auto; max-height: 60vh; }
-.kafka-compare [data-diff='added'] { background: rgba(0, 160, 0, 0.25); }
-.kafka-compare [data-diff='removed'] { background: rgba(200, 0, 0, 0.25); }
+.kafka-compare [data-diff='added'] { background: var(--vscode-diffEditor-insertedTextBackground, rgba(0, 160, 0, 0.25)); outline: 1px solid var(--vscode-diffEditor-insertedTextBorder, transparent); }
+.kafka-compare [data-diff='removed'] { background: var(--vscode-diffEditor-removedTextBackground, rgba(200, 0, 0, 0.25)); outline: 1px solid var(--vscode-diffEditor-removedTextBorder, transparent); }
 .kafka-compare [data-diff='blank'] { opacity: 0.4; }
 .kafka-tombstone { font-style: italic; color: var(--muted-foreground); }

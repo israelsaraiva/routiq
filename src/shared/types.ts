@@ -39,11 +39,21 @@ export type Auth =
   | { type: 'basic'; username: string; password: string }
   | { type: 'apikey'; key: string; value: string; location: ApiKeyLocation }
   | { type: 'digest'; username: string; password: string }
+  | AwsV4Auth
   | OAuth2Auth;
+
+export interface AwsV4Auth {
+  type: 'awsv4';
+  accessKey: string;
+  secretKey: string;
+  sessionToken: string;
+  region: string;
+  service: string;
+}
 
 export type ApiKeyLocation = 'header' | 'query';
 
-export type OAuth2Grant = 'client_credentials' | 'password';
+export type OAuth2Grant = 'client_credentials' | 'password' | 'authorization_code';
 
 export interface OAuth2Auth {
   type: 'oauth2';
@@ -54,6 +64,9 @@ export interface OAuth2Auth {
   scope: string;
   username: string;
   password: string;
+  authUrl?: string;
+  redirectUrl?: string;
+  usePkce?: boolean;
 }
 
 export type RequestKind = 'http' | 'sse' | 'websocket' | 'grpc' | 'graphql';
@@ -480,6 +493,7 @@ export type KafkaHostMessage =
   | { type: 'kafkaMessages'; messages: KafkaMessage[]; replace: boolean }
   | { type: 'kafkaProduceResult'; result: KafkaProduceResult }
   | { type: 'kafkaLogFile'; logFile?: KafkaLogFile }
+  | { type: 'kafkaProtoFilePicked'; path: string }
   | KafkaProduceHostMessage
   | KafkaEngineHostMessage
   | KafkaMessageFeatureHostMessage;
@@ -496,6 +510,7 @@ export type KafkaWebviewMessage =
   | { type: 'kafkaClearMessages' }
   | { type: 'kafkaImportLogFile' }
   | { type: 'kafkaClearLogFile' }
+  | { type: 'kafkaPickProtoFile' }
   | { type: 'kafkaSaveFile'; suggestedName: string; content: string }
   | { type: 'kafkaCopy'; text: string }
   | KafkaProduceWebviewMessage

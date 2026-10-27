@@ -13,6 +13,7 @@ import { Textarea } from '../components/ui/textarea';
 import { FormField } from './FormField';
 import { HeadersEditor } from './HeadersEditor';
 import { JobProgressPanel } from './JobProgressPanel';
+import { SendPreview } from './SendPreview';
 import { SendOptionsFields } from './SendOptionsFields';
 import { TemplatePicker } from './TemplatePicker';
 
@@ -68,6 +69,7 @@ export function SendForm({ draft, result, pending, job, templates = [], readOnly
       <FormField label="Key (optional)">{(id) => <Input id={id} value={draft.key} onChange={(event) => patch({ key: event.target.value })} />}</FormField>
       <FormField label="Headers (optional)">{() => <HeadersEditor text={draft.headers} onChange={(headers) => patch({ headers })} />}</FormField>
       <ValueEditor draft={draft} onPatch={patch} />
+      <SendPreview draft={draft} />
       <SendOptionsFields draft={draft} onPatch={patch} />
       {headersError && <p className="kafka-error">{headersError}</p>}
       {result && <SendResult result={result} />}
