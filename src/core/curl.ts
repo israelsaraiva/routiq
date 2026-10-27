@@ -2,7 +2,9 @@ import { Auth, HTTP_METHODS, HttpMethod, KeyValue, MultipartField, RequestBody, 
 import { IdGenerator, generateId } from './ids';
 import { createRequest } from './factories';
 import { PreparedMultipartPart, PreparedRequest } from './requestBuilder';
-import { ShellSyntaxError, tokenizeShell } from './shellTokenizer';
+import { CurlShell, curlCommandName, lineContinuation, quoteArgument } from './curlShell';
+import { ShellSyntaxError } from './shellTokenizer';
+import { tokenizeCurlCommand } from './windowsCurlTokenizer';
 import { withGraphqlKindWhenApplicable } from './graphql/kind';
 
 export class CurlParseError extends Error {}
@@ -498,7 +500,7 @@ function buildRequest(draft: CurlDraft, newId: IdGenerator): CurlImportResult {
 
 export function parseCurlCommand(command: string, newId: IdGenerator = generateId): CurlImportResult {
   try {
-    const tokens = stripCommandPrefix(tokenizeShell(command.trim()));
+    const tokens = stripCommandPrefix(tokenizeCurlCommand(command));
     return buildRequest(parseDraft(tokens), newId);
   } catch (error) {
     if (error instanceof ShellSyntaxError) {
@@ -508,10 +510,6 @@ export function parseCurlCommand(command: string, newId: IdGenerator = generateI
   }
 }
 
-function quoteShellArgument(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
 function methodArguments(method: string): string[] {
   if (method === 'GET') {
     return [];
@@ -519,25 +517,28 @@ function methodArguments(method: string): string[] {
   return method === 'HEAD' ? ['--head'] : ['-X', method];
 }
 
-function multipartArgument(part: PreparedMultipartPart): string {
+function multipartClause(part: PreparedMultipartPart, shell: CurlShell): string {
   if (part.kind === 'file') {
-    return `-F ${quoteShellArgument(`${part.name}=@${part.filePath}`)}`;
+    return `-F ${quoteArgument(`${part.name}=@${part.filePath}`, shell)}`;
   }
-  return `--form-string ${quoteShellArgument(`${part.name}=${part.value}`)}`;
+  return `--form-string ${quoteArgument(`${part.name}=${part.value}`, shell)}`;
 }
 
-function bodyArgumentsOf(prepared: PreparedRequest): string[] {
+function bodyClauses(prepared: PreparedRequest, shell: CurlShell): string[] {
   if (prepared.multipart) {
-    return prepared.multipart.map(multipartArgument);
+    return prepared.multipart.map((part) => multipartClause(part, shell));
   }
   if (prepared.bodyFilePath) {
-    return ['--data-binary', quoteShellArgument(`@${prepared.bodyFilePath}`)];
+    return [`--data-binary ${quoteArgument(`@${prepared.bodyFilePath}`, shell)}`];
   }
-  return prepared.body === undefined ? [] : ['--data-raw', quoteShellArgument(prepared.body)];
+  return prepared.body === undefined ? [] : [`--data-raw ${quoteArgument(prepared.body, shell)}`];
 }
 
-function digestArguments(prepared: PreparedRequest): string[] {
-  return prepared.digest ? ['--digest', '-u', quoteShellArgument(`${prepared.digest.username}:${prepared.digest.password}`)] : [];
+function digestClauses(prepared: PreparedRequest, shell: CurlShell): string[] {
+  if (!prepared.digest) {
+    return [];
+  }
+  return [`--digest -u ${quoteArgument(`${prepared.digest.username}:${prepared.digest.password}`, shell)}`];
 }
 
 export function curlGenerationWarnings(auth: Auth, prepared: PreparedRequest): string[] {
@@ -548,8 +549,9 @@ export function curlGenerationWarnings(auth: Auth, prepared: PreparedRequest): s
   return [];
 }
 
-export function generateCurlCommand(prepared: PreparedRequest): string {
-  const headerArguments = Object.entries(prepared.headers).flatMap(([name, value]) => ['-H', quoteShellArgument(`${name}: ${value}`)]);
-  const bodyArguments = bodyArgumentsOf(prepared);
-  return ['curl', ...methodArguments(prepared.method), quoteShellArgument(prepared.url), ...digestArguments(prepared), ...headerArguments, ...bodyArguments].join(' ');
+export function generateCurlCommand(prepared: PreparedRequest, shell: CurlShell = 'bash'): string {
+  const requestClause = [curlCommandName(shell), ...methodArguments(prepared.method), quoteArgument(prepared.url, shell)].join(' ');
+  const headerClauses = Object.entries(prepared.headers).map(([name, value]) => `-H ${quoteArgument(`${name}: ${value}`, shell)}`);
+  const clauses = [requestClause, ...digestClauses(prepared, shell), ...headerClauses, ...bodyClauses(prepared, shell)];
+  return clauses.join(lineContinuation(shell));
 }

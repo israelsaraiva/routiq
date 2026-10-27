@@ -64,4 +64,10 @@ describe('importPastedCurl', () => {
     expect(plain.kind).toBeUndefined();
     expect(plain.id).toBe('req-1');
   });
+
+  it('accepts cmd and PowerShell style commands', () => {
+    expect(extractPastedCurlCommand('curl.exe ^"http://x/y^" ^\n -H ^"A: b^"')).toBeDefined();
+    const imported = importPastedCurl(existing, 'curl.exe "http://x/y?q=1" `\n  -H \'A: b\'').request;
+    expect(imported).toMatchObject({ url: 'http://x/y', headers: [{ key: 'A', value: 'b' }] });
+  });
 });

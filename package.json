@@ -2,7 +2,7 @@
   "name": "routiq",
   "displayName": "Routiq",
   "description": "A lightweight Insomnia/Postman-like REST client inside VS Code.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",
@@ -125,6 +125,12 @@
           "type": "boolean",
           "default": true,
           "description": "Send HTTP requests through VS Code's networking stack so the system proxy (including PAC files), http.proxy and system certificates apply, like a browser. Ignored when routiq.proxy is set."
+        },
+        "routiq.curlShell": {
+          "type": "string",
+          "enum": ["auto", "bash", "powershell", "cmd"],
+          "default": "auto",
+          "description": "Shell syntax used by Copy as cURL. auto uses PowerShell on Windows and bash elsewhere. PowerShell and cmd output curl.exe with the right quoting and line continuations."
         },
         "routiq.scripts.timeoutMs": {
           "type": "number",

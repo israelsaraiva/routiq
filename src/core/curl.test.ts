@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CurlParseError, curlGenerationWarnings, generateCurlCommand, parseCurlCommand } from './curl';
 import { parseOwnCollection } from './collectionFormat';
+import { CurlShell, resolveCurlShell } from './curlShell';
 import { createCollection, createRequest } from './factories';
 import { serializeCollection } from './serialization';
 import { prepareRequest } from './requestBuilder';
@@ -369,5 +370,65 @@ describe('GraphQL cURL imports', () => {
     collection.items.push(request);
     const loaded = parseOwnCollection(JSON.parse(serializeCollection(collection)), (id) => String(id));
     expect(loaded.items[0]).toEqual(request);
+  });
+});
+
+describe('Windows cURL support', () => {
+  const graphqlBody = '{"query":"mutation M($r: T!) { f(request: $r) { id } }","variables":"{\\"a\\":{\\"b\\":\\"c\\"}}"}';
+  const roundTrip = (text: string, shell: CurlShell) => {
+    const original = {
+      ...createRequest('r'),
+      method: 'POST' as const,
+      url: 'https://a.test/x?y=1',
+      headers: [enabled('Content-Type', 'application/json'), enabled('X-A', "it's")],
+      body: { type: 'json' as const, text, form: [] },
+    };
+    return parse(generateCurlCommand(prepareRequest(original, {}), shell)).request;
+  };
+
+  it('resolves auto from the platform', () => {
+    expect(resolveCurlShell('auto', 'win32')).toBe('powershell');
+    expect(resolveCurlShell('auto', 'darwin')).toBe('bash');
+    expect(resolveCurlShell('cmd', 'darwin')).toBe('cmd');
+  });
+
+  it('generates PowerShell with curl.exe, backtick continuations and doubled single quotes', () => {
+    const command = generateCurlCommand({ url: 'u', method: 'POST', headers: { 'X-A': "it's" }, body: '{"a":1}' }, 'powershell');
+    expect(command).toBe(`curl.exe -X POST 'u' \`\n  -H 'X-A: it''s' \`\n  --data-raw '{"a":1}'`);
+  });
+
+  it('generates cmd with caret escapes', () => {
+    const command = generateCurlCommand({ url: 'u', method: 'POST', headers: {}, body: '{"a":1}' }, 'cmd');
+    expect(command).toBe('curl.exe -X POST ^"u^" ^\n  --data-raw ^"{\\^"a\\^":1}^"');
+  });
+
+  it.each<CurlShell>(['bash', 'powershell', 'cmd'])('round-trips a simple JSON body in %s', (shell) => {
+    expect(roundTrip('{"a":"b c","n":1}', shell)).toMatchObject({
+      method: 'POST',
+      url: 'https://a.test/x?y=1',
+      body: { type: 'json', text: '{"a":"b c","n":1}' },
+    });
+  });
+
+  it.each<CurlShell>(['bash', 'powershell'])('keeps GraphQL variables strings with escaped quotes in %s', (shell) => {
+    expect(roundTrip(graphqlBody, shell).body.text).toBe(graphqlBody);
+  });
+
+  it('parses a cmd-style command', () => {
+    const command = 'curl ^"http://x/y^" ^\n  -H ^"Content-Type: application/json^" ^\n  --data-raw ^"{^\\^"a^\\^":1}^"';
+    expect(parse(command).request).toMatchObject({
+      url: 'http://x/y',
+      body: { type: 'json', text: '{"a":1}' },
+    });
+  });
+
+  it('parses a PowerShell command with backtick continuations and escapes', () => {
+    const command = 'curl.exe -X POST "http://x/y" `\n  -H \'X-A: it\'\'s\' `\n  --data-raw "{`"a`":1}"';
+    expect(parse(command).request).toMatchObject({
+      method: 'POST',
+      url: 'http://x/y',
+      headers: [enabled('X-A', "it's")],
+      body: { text: '{"a":1}' },
+    });
   });
 });

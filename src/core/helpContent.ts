@@ -106,7 +106,7 @@ const REQUESTS_AND_TABS: HelpSection = {
     {
       id: 'copy-as-curl',
       title: 'Copy as cURL',
-      body: ['The Copy as cURL button (or the request context menu) substitutes variables, applies auth and copies a ready-to-run command.'],
+      body: ['The Copy as cURL button (or the request context menu) substitutes variables, applies auth and copies a ready-to-run command.', 'The syntax follows your OS: PowerShell (curl.exe, backtick continuations) on Windows, bash elsewhere. Override it with the routiq.curlShell setting (auto, bash, powershell, cmd). Pasting Windows cURL (cmd or PowerShell) works too.'],
       keywords: ['curl'],
     },
   ],

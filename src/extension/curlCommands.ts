@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { CurlParseError, curlGenerationWarnings, generateCurlCommand, parseCurlCommand } from '../core/curl';
+import { CurlShell, CurlShellSetting, resolveCurlShell } from '../core/curlShell';
 import { resolveCollectionVariables } from '../core/environments';
 import { PreparedRequest, prepareRequest } from '../core/requestBuilder';
 import { RequestModel } from '../shared/types';
@@ -13,9 +14,14 @@ function prepareForCurl(request: RequestModel, variables: Record<string, string>
   return prepareRequest(request, variables, { oauthAuthorization });
 }
 
+function configuredCurlShell(): CurlShell {
+  const setting = vscode.workspace.getConfiguration('routiq').get<CurlShellSetting>('curlShell', 'auto');
+  return resolveCurlShell(setting, process.platform);
+}
+
 export async function copyRequestAsCurl(request: RequestModel, variables: Record<string, string>): Promise<void> {
   const prepared = prepareForCurl(request, variables);
-  await vscode.env.clipboard.writeText(generateCurlCommand(prepared));
+  await vscode.env.clipboard.writeText(generateCurlCommand(prepared, configuredCurlShell()));
   const warnings = curlGenerationWarnings(request.auth, prepared);
   if (warnings.length > 0) {
     vscode.window.showWarningMessage(`Routiq: copied as cURL with notes — ${warnings.join('; ')}`);

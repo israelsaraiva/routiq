@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Copy as cURL now matches your OS: PowerShell (`curl.exe`, backtick continuations, single-quoted strings) on Windows, bash elsewhere. New `routiq.curlShell` setting (`auto`, `bash`, `powershell`, `cmd`).
+- Importing and pasting cURL accepts Windows commands: `curl.exe`, cmd `^` escapes and continuations (Chrome/Postman "Copy as cURL (cmd)") and PowerShell quoting with backtick continuations.
+
 ## 0.1.2
 
 - New `routiq.useVsCodeNetworking` setting (default on): HTTP requests go through VS Code networking so the Windows/system proxy, PAC files and system certificates apply, as in Postman. Ignored when `routiq.proxy` is set.
