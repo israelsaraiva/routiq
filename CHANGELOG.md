@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- Kafka UI: consistent spacing scale, aligned toolbar rows, tab and status bar polish, saved-filter controls shown only when relevant.
+
 ## 0.6.1
 
 - Kafka: connecting now saves the connection, so it appears in the sidebar.

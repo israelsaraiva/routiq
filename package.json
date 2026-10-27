@@ -2,7 +2,7 @@
   "name": "routiq",
   "displayName": "Routiq",
   "description": "Insomnia/Postman-style API client inside VS Code: REST, GraphQL, WebSocket, SSE, gRPC and Kafka, with collections, environments and scripts.",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",

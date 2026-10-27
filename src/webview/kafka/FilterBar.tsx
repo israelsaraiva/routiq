@@ -99,6 +99,10 @@ function SavedFilters({ filter, savedFilters, onApply, onChange }: SavedProps) {
     setRenamingId(null);
   };
 
+  if (savedFilters.length === 0 && !renamingId && !isFilterActive(filter)) {
+    return null;
+  }
+
   return (
     <div className="kafka-saved-filters">
       {savedFilters.map((saved) => (

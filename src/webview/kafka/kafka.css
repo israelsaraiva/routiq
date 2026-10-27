@@ -1,4 +1,4 @@
-.kafka-view { display: grid; grid-template-columns: minmax(260px, 320px) 1fr; height: 100%; min-height: 0; }
+.kafka-view { --kafka-gap-1: 4px; --kafka-gap-2: 8px; --kafka-gap-3: 12px; --kafka-pad-x: var(--kafka-gap-3); --rq-control-height: 28px; display: grid; grid-template-columns: minmax(260px, 320px) 1fr; height: 100%; min-height: 0; }
 .kafka-sidebar { padding: var(--rq-space-3); overflow-y: auto; border-right: 1px solid var(--border); }
 .kafka-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .kafka-main .ui-tabs-content { flex: 1 1 auto; min-height: 0; overflow: hidden; }
@@ -13,11 +13,18 @@
 .kafka-error-box { padding: var(--rq-space-2); border: 1px solid var(--destructive); border-radius: var(--radius); }
 .kafka-success { color: var(--success); margin: 0; }
 .kafka-messages { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.kafka-toolbar, .kafka-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rq-space-2); padding: var(--rq-space-2) var(--rq-space-3); }
+.kafka-toolbar, .kafka-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kafka-gap-2); padding: var(--kafka-gap-2) var(--kafka-pad-x); }
+.kafka-stats { padding-block: var(--kafka-gap-2); min-height: 22px; }
+.kafka-stats .ui-badge { min-height: 22px; box-sizing: border-box; display: inline-flex; align-items: center; }
+.kafka-stats .ui-badge-info { background: color-mix(in srgb, var(--info) 12%, transparent); border-color: var(--border); }
 .kafka-toolbar .ui-input { flex: 1 1 220px; min-width: 160px; }
+.kafka-filter .kafka-toolbar { padding: 0; }
+.kafka-main .ui-tabs-list { gap: var(--kafka-gap-3); padding: 0 var(--kafka-pad-x); }
+.kafka-main .ui-tabs-trigger { padding-inline: var(--kafka-gap-1); border-left: 0; }
+.kafka-main .ui-tabs-trigger[data-state='active'] { border-bottom-color: var(--vscode-focusBorder, var(--ring)); }
 .kafka-topic-chips { display: flex; flex-wrap: wrap; gap: var(--rq-space-1); }
 .kafka-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 var(--rq-space-3) var(--rq-space-3); }
-.kafka-empty { padding: var(--rq-space-4); color: var(--muted-foreground); }
+.kafka-empty { padding: var(--kafka-gap-3); color: var(--muted-foreground); }
 .kafka-flows { display: flex; flex-direction: column; gap: var(--rq-space-3); }
 .kafka-flow { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); overflow: hidden; }
 .kafka-flow-header, .kafka-message-header { display: flex; align-items: center; gap: var(--rq-space-2); padding: var(--rq-space-2); }
