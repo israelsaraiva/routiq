@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1
+
+- Kafka: connecting now saves the connection, so it appears in the sidebar.
+
 ## 0.6.0
 
 - Kafka: resizable message detail panel, reconnect countdown, consumer lag in the status bar, refreshed screenshots.

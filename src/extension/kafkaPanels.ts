@@ -285,6 +285,7 @@ class KafkaPanel implements vscode.Disposable {
     }
     this.activeProfileId = draft.id;
     this.panel.title = `Kafka — ${draft.name || 'Listener'}`;
+    await this.dependencies.profiles.save(draft);
     await this.dependencies.profiles.rememberLast(draft.id);
     await this.configureSchemaRegistry(draft);
     this.lagTarget = config.groupId ? { config, groupId: config.groupId, topics: config.topics } : undefined;
