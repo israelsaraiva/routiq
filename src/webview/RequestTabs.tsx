@@ -1,0 +1,184 @@
+import { ApiKeyLocation, Auth, OAuth2Auth, OAuth2Grant, RequestModel } from '../shared/types';
+import { BodyEditor } from './BodyEditor';
+import { OptionSelect, toSelectOptions } from './components/OptionSelect';
+import { Alert, AlertDescription } from './components/ui/alert';
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { KeyValueTable } from './KeyValueTable';
+import { ScriptsEditor } from './ScriptsEditor';
+
+export type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'scripts';
+
+export const REQUEST_TABS: Array<{ id: RequestTab; label: string }> = [
+  { id: 'params', label: 'Params' },
+  { id: 'headers', label: 'Headers' },
+  { id: 'body', label: 'Body' },
+  { id: 'auth', label: 'Auth' },
+  { id: 'scripts', label: 'Scripts' },
+];
+
+interface Props {
+  tab: RequestTab;
+  request: RequestModel;
+  onChange: (patch: Partial<RequestModel>) => void;
+  oauthStatus?: OAuthStatus;
+  onFetchOAuthToken?: () => void;
+}
+
+export interface OAuthStatus {
+  ok: boolean;
+  message: string;
+}
+
+const AUTH_TYPES: Array<{ id: Auth['type']; label: string }> = [
+  { id: 'none', label: 'None' },
+  { id: 'bearer', label: 'Bearer Token' },
+  { id: 'basic', label: 'Basic Auth' },
+  { id: 'apikey', label: 'API Key' },
+  { id: 'oauth2', label: 'OAuth 2.0' },
+  { id: 'digest', label: 'Digest Auth' },
+];
+
+const OAUTH_GRANTS: Array<{ id: OAuth2Grant; label: string }> = [
+  { id: 'client_credentials', label: 'Client Credentials' },
+  { id: 'password', label: 'Password' },
+];
+
+const API_KEY_LOCATIONS: Array<{ id: ApiKeyLocation; label: string }> = [
+  { id: 'header', label: 'Header' },
+  { id: 'query', label: 'Query param' },
+];
+
+function emptyAuth(type: Auth['type']): Auth {
+  if (type === 'bearer') {
+    return { type, token: '' };
+  }
+  if (type === 'basic' || type === 'digest') {
+    return { type, username: '', password: '' };
+  }
+  if (type === 'apikey') {
+    return { type, key: '', value: '', location: 'header' };
+  }
+  if (type === 'oauth2') {
+    return { type, grant: 'client_credentials', tokenUrl: '', clientId: '', clientSecret: '', scope: '', username: '', password: '' };
+  }
+  return { type: 'none' };
+}
+
+interface AuthFieldProps {
+  placeholder: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  secret?: boolean;
+}
+
+function AuthField({ placeholder, value, onValueChange, secret }: AuthFieldProps) {
+  return (
+    <Input
+      className="auth-field"
+      type={secret ? 'password' : 'text'}
+      placeholder={placeholder}
+      aria-label={placeholder}
+      title={placeholder}
+      value={value}
+      onChange={(event) => onValueChange(event.target.value)}
+    />
+  );
+}
+
+function CredentialFields({ auth, onChange }: { auth: Extract<Auth, { username: string; password: string }>; onChange: (auth: Auth) => void }) {
+  return (
+    <>
+      <AuthField placeholder="Username" value={auth.username} onValueChange={(username) => onChange({ ...auth, username })} />
+      <AuthField secret placeholder="Password" value={auth.password} onValueChange={(password) => onChange({ ...auth, password })} />
+    </>
+  );
+}
+
+function ApiKeyFields({ auth, onChange }: { auth: Extract<Auth, { type: 'apikey' }>; onChange: (auth: Auth) => void }) {
+  return (
+    <>
+      <AuthField placeholder="Key name" value={auth.key} onValueChange={(key) => onChange({ ...auth, key })} />
+      <AuthField placeholder="Value" value={auth.value} onValueChange={(value) => onChange({ ...auth, value })} />
+      <OptionSelect
+        className="auth-field"
+        ariaLabel="API key location"
+        value={auth.location}
+        options={toSelectOptions(API_KEY_LOCATIONS)}
+        onValueChange={(location) => onChange({ ...auth, location })}
+      />
+    </>
+  );
+}
+
+interface OAuthFieldsProps {
+  auth: OAuth2Auth;
+  onChange: (auth: Auth) => void;
+  status?: OAuthStatus;
+  onFetchToken?: () => void;
+}
+
+function OAuthFields({ auth, onChange, status, onFetchToken }: OAuthFieldsProps) {
+  return (
+    <>
+      <OptionSelect
+        className="auth-field"
+        ariaLabel="OAuth grant type"
+        value={auth.grant}
+        options={toSelectOptions(OAUTH_GRANTS)}
+        onValueChange={(grant) => onChange({ ...auth, grant })}
+      />
+      <AuthField placeholder="Token URL" value={auth.tokenUrl} onValueChange={(tokenUrl) => onChange({ ...auth, tokenUrl })} />
+      <AuthField placeholder="Client ID" value={auth.clientId} onValueChange={(clientId) => onChange({ ...auth, clientId })} />
+      <AuthField secret placeholder="Client secret" value={auth.clientSecret} onValueChange={(clientSecret) => onChange({ ...auth, clientSecret })} />
+      <AuthField placeholder="Scope" value={auth.scope} onValueChange={(scope) => onChange({ ...auth, scope })} />
+      {auth.grant === 'password' && <CredentialFields auth={auth} onChange={onChange} />}
+      <Button className="auth-field" onClick={onFetchToken}>
+        Fetch token
+      </Button>
+      {status && (
+        <Alert className="auth-status" variant={status.ok ? 'success' : 'destructive'}>
+          <AlertDescription>{status.message}</AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+}
+
+function AuthEditor({ request, onChange, oauthStatus, onFetchOAuthToken }: Omit<Props, 'tab'>) {
+  const { auth } = request;
+  const changeAuth = (next: Auth) => onChange({ auth: next });
+  return (
+    <div>
+      <OptionSelect
+        ariaLabel="Auth type"
+        value={auth.type}
+        options={toSelectOptions(AUTH_TYPES)}
+        onValueChange={(type) => changeAuth(emptyAuth(type))}
+      />
+      {auth.type === 'bearer' && (
+        <AuthField placeholder="Token" value={auth.token} onValueChange={(token) => changeAuth({ ...auth, token })} />
+      )}
+      {(auth.type === 'basic' || auth.type === 'digest') && <CredentialFields auth={auth} onChange={changeAuth} />}
+      {auth.type === 'apikey' && <ApiKeyFields auth={auth} onChange={changeAuth} />}
+      {auth.type === 'oauth2' && (
+        <OAuthFields auth={auth} onChange={changeAuth} status={oauthStatus} onFetchToken={onFetchOAuthToken} />
+      )}
+    </div>
+  );
+}
+
+export function RequestTabContent({ tab, request, onChange, oauthStatus, onFetchOAuthToken }: Props) {
+  if (tab === 'params') {
+    return <KeyValueTable rows={request.params} onChange={(params) => onChange({ params })} keyPlaceholder="Parameter" />;
+  }
+  if (tab === 'headers') {
+    return <KeyValueTable rows={request.headers} onChange={(headers) => onChange({ headers })} keyPlaceholder="Header" suggestHeaderNames />;
+  }
+  if (tab === 'scripts') {
+    return <ScriptsEditor request={request} onChange={onChange} />;
+  }
+  return tab === 'body' ? <BodyEditor body={request.body} onChange={(body) => onChange({ body })} /> : (
+    <AuthEditor request={request} onChange={onChange} oauthStatus={oauthStatus} onFetchOAuthToken={onFetchOAuthToken} />
+  );
+}

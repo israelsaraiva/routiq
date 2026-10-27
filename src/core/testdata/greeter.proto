@@ -1,0 +1,25 @@
+syntax = "proto3";
+package demo;
+
+service Greeter {
+  rpc Hello (HelloRequest) returns (HelloReply);
+  rpc Countdown (HelloRequest) returns (stream HelloReply);
+  rpc Collect (stream HelloRequest) returns (HelloReply);
+  rpc Chat (stream HelloRequest) returns (stream HelloReply);
+}
+
+enum Kind { KIND_A = 0; KIND_B = 1; }
+
+message Inner { int32 n = 1; }
+
+message HelloRequest {
+  string name = 1;
+  repeated string tags = 2;
+  Inner inner = 3;
+  map<string, int32> counts = 4;
+  Kind kind = 5;
+  bool loud = 6;
+  repeated Inner inners = 7;
+}
+
+message HelloReply { string message = 1; }

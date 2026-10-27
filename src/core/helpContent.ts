@@ -1,0 +1,494 @@
+export interface HelpItem {
+  id: string;
+  title: string;
+  body: string[];
+  code?: string;
+  keywords?: string[];
+}
+
+export interface ShortcutEntry {
+  keys: string;
+  action: string;
+  where: string;
+}
+
+export interface HelpSection {
+  id: string;
+  title: string;
+  summary: string;
+  items: HelpItem[];
+  shortcuts?: ShortcutEntry[];
+  hasSettingsButton?: boolean;
+}
+
+const GETTING_STARTED: HelpSection = {
+  id: 'getting-started',
+  title: 'Getting started',
+  summary: 'Create a collection, add a request and send it.',
+  items: [
+    {
+      id: 'create-collection',
+      title: 'Create a collection',
+      body: [
+        'Open the Routiq view in the activity bar and click New Collection (or run "Routiq: New Collection").',
+        'A collection holds requests and nested folders. Right-click it for New Request, New Folder, Import, Run and Export.',
+      ],
+    },
+    {
+      id: 'create-request',
+      title: 'Add a request',
+      body: [
+        'Right-click a collection or folder and choose New Request. Pick the kind: HTTP, GraphQL, Server-Sent Events, WebSocket or gRPC, then give it a name.',
+        'Click a request in the tree to open its editor. Drag and drop in the tree to move or reorder requests and folders.',
+      ],
+    },
+    {
+      id: 'send-request',
+      title: 'Send a request',
+      body: [
+        'Choose the method, type the URL and press Enter in the URL field or click Send. The response shows status, time, size, headers and a pretty-printed body.',
+        'Save (Cmd/Ctrl+S) persists the request to the collection file.',
+      ],
+    },
+    {
+      id: 'find-requests',
+      title: 'Search and filter requests',
+      body: [
+        'Search Requests (magnifier in the view title) opens a quick pick over every request by name, method, URL and path.',
+        'Filter Requests in Tree fuzzy-filters the tree; Clear Tree Filter removes the filter.',
+      ],
+    },
+  ],
+};
+
+const REQUESTS_AND_TABS: HelpSection = {
+  id: 'requests-and-tabs',
+  title: 'Requests & tabs',
+  summary: 'Params, headers, body types and authentication.',
+  items: [
+    {
+      id: 'params-headers',
+      title: 'Params and headers',
+      body: [
+        'Params and Headers are key/value tables with an enable checkbox per row. Query params stay in sync with the URL. Tab badges show how many rows are active.',
+        'Typing {{ in a value opens variable autocomplete; the headers table also suggests common header names.',
+      ],
+      keywords: ['query', 'enable', 'disable'],
+    },
+    {
+      id: 'body-types',
+      title: 'Body types',
+      body: [
+        'Available body types: none, JSON, XML, text, form (x-www-form-urlencoded), multipart form (text and file fields), binary file and GraphQL.',
+        'JSON, XML and text bodies have a Prettify button (Shift+Alt+F in the editor); JSON also has Minify and a live Valid/Invalid indicator. {{variables}} stay intact, even unquoted.',
+      ],
+      keywords: ['prettify', 'format', 'minify', 'multipart', 'binary', 'urlencoded'],
+    },
+    {
+      id: 'auth-types',
+      title: 'Authentication types',
+      body: [
+        'None, Bearer token, Basic Auth, API Key (header or query param), OAuth 2.0 (client credentials or password grant) and Digest Auth.',
+        'OAuth 2.0 tokens are fetched by the extension and refreshed on send; use Fetch token in the Auth tab to force a refresh. Digest auth is applied after a 401 challenge.',
+        'Credentials entered in the Auth tab are stored in the collection file as plain text; use secret variables such as {{token}} instead.',
+      ],
+      keywords: ['bearer', 'basic', 'oauth', 'digest', 'api key', 'token'],
+    },
+    {
+      id: 'response-viewer',
+      title: 'Response viewer',
+      body: [
+        'Syntax-highlighted JSON/XML/HTML, Pretty/Raw and wrap toggles, find in response, a JSON path filter ($.data[0].name), copy and Save body to file.',
+        'Each sent request is recorded in the request History (method, URL, status, headers, bodies).',
+      ],
+      keywords: ['history', 'jsonpath', 'find'],
+    },
+    {
+      id: 'copy-as-curl',
+      title: 'Copy as cURL',
+      body: ['The Copy as cURL button (or the request context menu) substitutes variables, applies auth and copies a ready-to-run command.'],
+      keywords: ['curl'],
+    },
+  ],
+};
+
+const VARIABLES_AND_ENVIRONMENTS: HelpSection = {
+  id: 'variables-and-environments',
+  title: 'Variables & environments',
+  summary: 'Base variables, environments, secrets and dynamic values.',
+  items: [
+    {
+      id: 'base-vs-environment',
+      title: 'Base variables vs environments',
+      body: [
+        'Use {{name}} in the URL, params, headers, body and auth. Unknown placeholders are left untouched.',
+        'Every collection has base variables and any number of environments (dev, staging, prod…). One environment can be active; its variables override base variables of the same name.',
+        'Manage Environments (collection context menu or the gear in a request panel) edits them. Switch with the Environment dropdown, the status bar item or "Routiq: Switch Environment". The active environment is stored in the collection file.',
+      ],
+      keywords: ['environment', 'switch', 'base'],
+    },
+    {
+      id: 'secret-variables',
+      title: 'Secret variables',
+      body: [
+        'Click the lock next to a variable in the environment editor to mark it secret. The value is masked and stored in VS Code SecretStorage, never in the collection JSON file.',
+        'Secrets are per machine: they are omitted from exports and not shared when you commit or copy the collection file.',
+      ],
+      keywords: ['secret', 'secretstorage', 'password', 'token'],
+    },
+    {
+      id: 'dynamic-variables',
+      title: 'Dynamic variables',
+      body: ['Generated on every send. Type {{$ in a value field to see them.'],
+      code: [
+        '{{$uuid}} / {{$guid}}   random UUID',
+        '{{$timestamp}}         Unix time in seconds',
+        '{{$timestampMs}}       Unix time in milliseconds',
+        '{{$isoTimestamp}}      ISO 8601 date-time',
+        '{{$randomInt}}         integer from 0 to 999',
+        '{{$randomString}}      16 random letters and digits',
+        '{{$randomHex}}         16 random hex digits',
+        '{{$randomBoolean}}     true or false',
+      ].join('\n'),
+      keywords: ['uuid', 'guid', 'timestamp', 'random', 'dynamic', '$'],
+    },
+  ],
+};
+
+const IMPORT_EXPORT: HelpSection = {
+  id: 'import-export',
+  title: 'Importing & exporting',
+  summary: 'Bring requests in from files, the clipboard, cURL, Postman, Insomnia and OpenAPI.',
+  items: [
+    {
+      id: 'import-file',
+      title: 'Import from a file',
+      body: [
+        'Import (toolbar button, collection/folder context menu or "Routiq: Import…") offers From file…, From clipboard and cURL command….',
+        'Files go through the same format detection as the clipboard. IDs are regenerated on import and a summary shows counts and warnings.',
+      ],
+    },
+    {
+      id: 'import-clipboard',
+      title: 'Import from the clipboard (auto-detect)',
+      body: [
+        '"Routiq: Import from Clipboard" reads the clipboard and detects a cURL command, a Routiq export, a Postman collection or environment, an OpenAPI 3.x / Swagger 2.0 document (JSON or YAML) or an Insomnia v4 export.',
+      ],
+      keywords: ['clipboard', 'detect', 'paste'],
+    },
+    {
+      id: 'import-curl',
+      title: 'cURL paste into the URL bar',
+      body: [
+        'Paste a command starting with curl into the URL field of an HTTP or GraphQL request. Its method, URL, params, headers, body and auth replace the current ones and a notice offers Undo.',
+        'Import cURL (command palette or context menu) creates a new request from a command instead.',
+      ],
+      code: "curl -X POST https://api.example.com/users -H 'Content-Type: application/json' -d '{\"name\":\"Ada\"}'",
+      keywords: ['curl'],
+    },
+    {
+      id: 'import-foreign',
+      title: 'Postman, Insomnia and OpenAPI',
+      body: [
+        'Postman v2.1 collections and environments keep folders, bodies, auth and variables; scripts are translated best-effort to the rq API and untranslatable lines are kept as comments with warnings.',
+        'OpenAPI / Swagger documents become one folder per tag with {{baseUrl}} URLs, example bodies and auth mapped from the security schemes.',
+        'Insomnia v4 exports map workspaces to collections, request groups to folders and environments to environments.',
+      ],
+      keywords: ['postman', 'insomnia', 'openapi', 'swagger', 'yaml'],
+    },
+    {
+      id: 'export',
+      title: 'Exporting',
+      body: [
+        'Export (toolbar for all collections, or a collection context menu for one) writes a Routiq .json file.',
+        'Export as Postman v2.1… writes the collection and one .postman_environment.json per environment; secret values are blanked.',
+      ],
+      keywords: ['postman', 'json'],
+    },
+  ],
+};
+
+const SCRIPTS_AND_TESTS: HelpSection = {
+  id: 'scripts-and-tests',
+  title: 'Scripts & tests',
+  summary: 'Pre-request and post-response JavaScript with the rq API.',
+  items: [
+    {
+      id: 'rq-api',
+      title: 'rq API reference',
+      body: [
+        'rq.variables.get(name) / rq.variables.set(name, value): string values. Writes go to the active environment (or the collection variables) and are never applied to secrets.',
+        'rq.request: url, method, headers (object) and body (text). Pre-request edits apply to that send only.',
+        'rq.response (post-response only): status, statusText, timeMs, headers (lower-case names), body, text(), json(), header(name).',
+        'rq.test(name, fn) and rq.expect(value) with toBe, toEqual, toContain, toMatch, toHaveLength, toHaveProperty, toBeGreaterThan(OrEqual), toBeLessThan(OrEqual), toBeTruthy, toBeFalsy, toBeNull, toBeUndefined, toBeDefined and .not.',
+        'console.log/info/warn/error output is captured in the Tests tab of the response.',
+      ],
+      keywords: ['rq', 'expect', 'test', 'console', 'assert'],
+    },
+    {
+      id: 'script-examples',
+      title: 'Examples',
+      body: ['Set a header before sending, then store a token and assert the status afterwards.'],
+      code: [
+        '// pre-request',
+        "rq.variables.set('nonce', String(Date.now()));",
+        "rq.request.headers['X-Nonce'] = rq.variables.get('nonce');",
+        '',
+        '// post-response',
+        "rq.variables.set('token', rq.response.json().token);",
+        "rq.test('created', () => rq.expect(rq.response.status).toBe(201));",
+        "console.log('took', rq.response.timeMs, 'ms');",
+      ].join('\n'),
+      keywords: ['example', 'token', 'nonce'],
+    },
+    {
+      id: 'script-security',
+      title: 'Security and consent',
+      body: [
+        'The first time a script would run in a collection (including imported Postman collections) a modal asks for consent; scripts stay disabled until you choose Allow Scripts. The decision is remembered per collection.',
+        'Scripts never run in an untrusted workspace. They run in an isolated worker with capped memory and a timeout (routiq.scripts.timeoutMs). Only allow scripts from sources you trust.',
+      ],
+      keywords: ['consent', 'trust', 'sandbox', 'worker', 'timeout'],
+    },
+  ],
+  hasSettingsButton: true,
+};
+
+const COLLECTION_RUNNER: HelpSection = {
+  id: 'collection-runner',
+  title: 'Collection runner',
+  summary: 'Run every request of a collection or folder in order.',
+  items: [
+    {
+      id: 'run-collection',
+      title: 'Run a collection or folder',
+      body: [
+        'Right-click a collection or folder and choose Run Collection/Folder. HTTP and GraphQL requests run sequentially in tree order with their scripts, so variables set by one request are available to the next. SSE and WebSocket requests are skipped.',
+        'A results tab shows status, time and pass/fail per request and test. Stop aborts the in-flight request and ends the run.',
+        'The runner sends the saved version of each request; set routiq.runner.delayMs to wait between requests.',
+      ],
+      keywords: ['runner', 'delay', 'tests'],
+    },
+  ],
+  hasSettingsButton: true,
+};
+
+const GRAPHQL: HelpSection = {
+  id: 'graphql',
+  title: 'GraphQL',
+  summary: 'Query editor, variables and a schema explorer.',
+  items: [
+    {
+      id: 'graphql-editor',
+      title: 'Query and variables',
+      body: [
+        'Choose GraphQL in New Request. The request is sent as a { query, variables, operationName } JSON body with POST.',
+        'The Query tab has syntax highlighting, a validated Variables JSON editor, an operation selector for documents with several operations and Prettify.',
+      ],
+    },
+    {
+      id: 'graphql-schema',
+      title: 'Schema explorer and autocomplete',
+      body: [
+        'Fetch schema runs the introspection query through the normal send pipeline and caches the result per URL. Search types, fields and arguments and click a field to insert it.',
+        'With a schema loaded, suggestions appear while typing; press Ctrl+Space to force them.',
+      ],
+      keywords: ['introspection', 'autocomplete'],
+    },
+  ],
+};
+
+const STREAMS: HelpSection = {
+  id: 'websocket-sse',
+  title: 'WebSocket & SSE',
+  summary: 'Live connections with a message log.',
+  items: [
+    {
+      id: 'sse',
+      title: 'Server-Sent Events',
+      body: [
+        'Use the Server-Sent Events kind (or tick Stream on an HTTP request). Connect opens a streaming GET and lists events live with name, id, retry and data, plus filter, auto-scroll and clear.',
+      ],
+      keywords: ['stream', 'event-stream'],
+    },
+    {
+      id: 'websocket',
+      title: 'WebSocket',
+      body: [
+        'http(s):// URLs are mapped to ws(s)://. Set headers and comma-separated subprotocols, then Connect. Send text or JSON from the composer; the log shows direction, time and size.',
+        'Binary frames can be shown as Hex or Base64. Auto-reconnect is optional. Proxy settings and the cookie jar apply.',
+      ],
+      keywords: ['ws', 'subprotocol', 'binary', 'reconnect'],
+    },
+  ],
+  hasSettingsButton: true,
+};
+
+const GRPC: HelpSection = {
+  id: 'grpc',
+  title: 'gRPC',
+  summary: 'Call unary and streaming methods from .proto files.',
+  items: [
+    {
+      id: 'grpc-setup',
+      title: 'Target and schema',
+      body: [
+        'Choose gRPC in New Request. Enter host:port in the URL field, toggle TLS, then add one or more .proto files (and import paths) with the file dialog.',
+        'Methods appear in the dropdown with their call type; selecting one fills the Message tab with an example JSON body. Server reflection is not supported.',
+      ],
+      keywords: ['proto', 'reflection', 'tls'],
+    },
+    {
+      id: 'grpc-calls',
+      title: 'Metadata and calls',
+      body: [
+        'Metadata uses key/value rows (-bin keys take base64). The timeout field is the call deadline.',
+        'Invoke sends the message for unary and server-streaming calls. For client and bidirectional streaming, send each message and End stream half-closes; Cancel aborts.',
+      ],
+      keywords: ['metadata', 'streaming', 'invoke'],
+    },
+  ],
+};
+
+const STORAGE_AND_GIT: HelpSection = {
+  id: 'storage-and-git',
+  title: 'Storage & Git',
+  summary: 'Where collections live and how to share them.',
+  items: [
+    {
+      id: 'storage-path',
+      title: 'routiq.storagePath',
+      body: [
+        'Empty (default) uses the extension global storage. Set an absolute path, or a path relative to the first workspace folder such as .routiq, to keep collections in your project.',
+        'Changing the setting switches directory immediately.',
+      ],
+      code: '"routiq.storagePath": ".routiq"',
+      keywords: ['storage', 'directory', 'folder', 'path'],
+    },
+    {
+      id: 'file-per-collection',
+      title: 'One file per collection',
+      body: [
+        'Each collection is a pretty-printed JSON file named after the collection, written atomically with stable key order, so diffs are readable and merges are practical.',
+        'Commit the files to Git to share collections. External edits (git pull, manual changes) are picked up by a file watcher; invalid JSON files are ignored.',
+        'Secret variable values are never in the files, and request history is not shared.',
+      ],
+      keywords: ['git', 'commit', 'share', 'json', 'watcher'],
+    },
+  ],
+  hasSettingsButton: true,
+};
+
+const NETWORK_SETTINGS: HelpSection = {
+  id: 'network-settings',
+  title: 'Cookies, proxy, SSL & redirects',
+  summary: 'Network behaviour of every request.',
+  items: [
+    {
+      id: 'cookies',
+      title: 'Cookies',
+      body: ['Each collection has a cookie jar that honours Set-Cookie (domain, path, expiry, Secure) and is applied across redirects. "Routiq: Manage Cookies" views, deletes and clears cookies.'],
+    },
+    {
+      id: 'redirects',
+      title: 'Redirects',
+      body: [
+        'routiq.followRedirects (default on) and routiq.maxRedirects (default 10). 301/302 on POST and 303 switch to GET without a body; 307/308 keep method and body. Authorization and Cookie headers are dropped on cross-origin hops.',
+      ],
+    },
+    {
+      id: 'proxy-tls',
+      title: 'Proxy and SSL',
+      body: [
+        'routiq.proxy falls back to the VS Code http.proxy setting, then HTTPS_PROXY/HTTP_PROXY; NO_PROXY is honoured.',
+        'Set routiq.rejectUnauthorized to false to accept self-signed certificates (insecure).',
+      ],
+      keywords: ['certificate', 'tls', 'self-signed', 'https'],
+    },
+    {
+      id: 'timeout',
+      title: 'Timeout',
+      body: ['routiq.timeoutMs sets the default (30000 ms); override it per request with the timeout field next to Send.'],
+    },
+  ],
+  hasSettingsButton: true,
+};
+
+const KEYBOARD_SHORTCUTS: HelpSection = {
+  id: 'keyboard-shortcuts',
+  title: 'Keyboard shortcuts',
+  summary: 'Shortcuts available inside Routiq panels.',
+  items: [],
+  shortcuts: [
+    { keys: 'Cmd/Ctrl+S', action: 'Save the request or the environments', where: 'Request and environment editors' },
+    { keys: 'Enter', action: 'Send the request', where: 'URL field' },
+    { keys: 'Shift+Alt+F', action: 'Prettify the body', where: 'JSON, XML and text body editors' },
+    { keys: 'Ctrl+Space', action: 'Show schema suggestions', where: 'GraphQL query editor' },
+    { keys: '↑ / ↓', action: 'Move in the suggestion list', where: 'Variable and GraphQL autocomplete' },
+    { keys: 'Enter / Tab', action: 'Insert the highlighted suggestion', where: 'Variable and GraphQL autocomplete' },
+    { keys: 'Esc', action: 'Dismiss suggestions', where: 'Variable and GraphQL autocomplete' },
+    { keys: 'Enter / Shift+Enter', action: 'Next / previous match', where: 'Find in response' },
+    { keys: 'Enter', action: 'Add a variable row', where: 'Environment variable name field' },
+    { keys: 'Arrow keys', action: 'Resize the request/response split', where: 'Focused split divider' },
+  ],
+};
+
+const FAQ: HelpSection = {
+  id: 'faq',
+  title: 'FAQ & troubleshooting',
+  summary: 'Common questions and fixes.',
+  items: [
+    {
+      id: 'faq-self-signed',
+      title: 'Certificate errors with self-signed servers',
+      body: ['Set routiq.rejectUnauthorized to false in settings. This disables TLS verification, so only do it for servers you trust.'],
+      keywords: ['ssl', 'tls', 'certificate', 'unable to verify'],
+    },
+    {
+      id: 'faq-scripts-disabled',
+      title: 'Scripts are disabled',
+      body: ['Scripts need consent per collection and a trusted workspace. Send a request with a script and choose Allow Scripts, and trust the workspace if prompted.'],
+      keywords: ['script', 'trust', 'consent'],
+    },
+    {
+      id: 'faq-timeout',
+      title: 'Requests time out',
+      body: ['Raise routiq.timeoutMs or the timeout field next to Send. Check the proxy configuration if a corporate proxy is required.'],
+      keywords: ['timeout', 'proxy', 'slow'],
+    },
+    {
+      id: 'faq-missing-collections',
+      title: 'My collections are missing',
+      body: ['Check routiq.storagePath: a relative path resolves against the first workspace folder, so opening another folder shows a different set. The About page shows the directory in use.'],
+      keywords: ['storage', 'missing', 'empty'],
+    },
+    {
+      id: 'faq-variable-not-replaced',
+      title: 'A {{variable}} is not replaced',
+      body: ['Unknown placeholders stay untouched. Check the variable name, that the row is enabled and that the intended environment is active.'],
+      keywords: ['variable', 'environment', 'placeholder'],
+    },
+    {
+      id: 'faq-report-bug',
+      title: 'Reporting a problem',
+      body: ['Open the About page and use Copy diagnostics to attach version information and settings (no secrets) to your report.'],
+      keywords: ['bug', 'issue', 'diagnostics', 'support'],
+    },
+  ],
+};
+
+export const HELP_SECTIONS: HelpSection[] = [
+  GETTING_STARTED,
+  REQUESTS_AND_TABS,
+  VARIABLES_AND_ENVIRONMENTS,
+  IMPORT_EXPORT,
+  SCRIPTS_AND_TESTS,
+  COLLECTION_RUNNER,
+  GRAPHQL,
+  STREAMS,
+  GRPC,
+  STORAGE_AND_GIT,
+  NETWORK_SETTINGS,
+  KEYBOARD_SHORTCUTS,
+  FAQ,
+];
