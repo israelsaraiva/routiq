@@ -108,7 +108,7 @@ const REQUESTS_AND_TABS: HelpSection = {
       id: 'convert-graphql',
       title: 'Convert between HTTP and GraphQL',
       body: [
-        'Open the ... menu in the request toolbar and choose Convert to GraphQL (HTTP requests) or Convert to HTTP (GraphQL requests). The change is an ordinary edit: save it or leave it unsaved.',
+        'Open the ... menu in the request toolbar and choose Convert to GraphQL (HTTP requests) or Convert to HTTP (GraphQL requests). You can also right-click a request in the tree. A notice offers Undo, and the change is an ordinary edit: save it or leave it unsaved.',
         'A JSON body of the shape {query, variables, operationName} fills the Query tab; a text body is used as the query when it looks like GraphQL. Bodies that cannot be carried over (form, multipart, binary, other JSON) are discarded and a notice says so.',
       ],
       keywords: ['graphql', 'convert', 'http'],
@@ -391,14 +391,14 @@ const STREAMS: HelpSection = {
 const GRPC: HelpSection = {
   id: 'grpc',
   title: 'gRPC',
-  summary: 'Call unary and streaming methods from .proto files.',
+  summary: 'Call unary and streaming methods from .proto files or server reflection.',
   items: [
     {
       id: 'grpc-setup',
       title: 'Target and schema',
       body: [
-        'Choose gRPC in New Request. Enter host:port in the URL field, toggle TLS, then add one or more .proto files (and import paths) with the file dialog.',
-        'Methods appear in the dropdown with their call type; selecting one fills the Message tab with an example JSON body. Server reflection is not supported.',
+        'Choose gRPC in New Request. Enter host:port in the URL field, toggle TLS, then keep Use server reflection on to list the services of the server, or switch it off and add one or more .proto files (and import paths) with the file dialog.',
+        'Methods appear in the dropdown with their call type; selecting one fills the Message tab with an example JSON body. Servers that do not expose reflection need a .proto file.',
       ],
       keywords: ['proto', 'reflection', 'tls'],
     },
@@ -473,7 +473,10 @@ const NETWORK_SETTINGS: HelpSection = {
     {
       id: 'timeout',
       title: 'Timeout',
-      body: ['routiq.timeoutMs sets the default (30000 ms); override it per request with the timeout field next to Send.'],
+      body: [
+        'routiq.timeoutMs sets the default (30000 ms); override it per request with the timeout field next to Send.',
+        'routiq.connectTimeoutMs (default 10000 ms) limits connecting: a connect timeout means the host is unreachable, a response timeout means it was reached but did not answer.',
+      ],
     },
   ],
   hasSettingsButton: true,
@@ -573,6 +576,15 @@ const FAQ: HelpSection = {
       title: 'Requests time out',
       body: ['Raise routiq.timeoutMs or the timeout field next to Send. Check the proxy configuration if a corporate proxy is required.'],
       keywords: ['timeout', 'proxy', 'slow'],
+    },
+    {
+      id: 'faq-timeout-postman',
+      title: 'Requests time out but work in Postman',
+      body: [
+        'Run Routiq: Diagnose Network for this Request (request ... menu, or the button on the error). It checks DNS, proxy, TCP, each transport and TLS and suggests settings.',
+        'Common fix: set routiq.useVsCodeNetworking to true (system proxy/PAC and certificates) or set routiq.proxy. Tick "Use the real method and body" to also re-send the actual request.',
+      ],
+      keywords: ['timeout', 'postman', 'proxy', 'diagnose', 'network', 'pac', 'connect'],
     },
     {
       id: 'faq-missing-collections',

@@ -4,9 +4,17 @@ export interface NetworkSettings {
   proxyUrl?: string;
   rejectUnauthorized: boolean;
   useVsCodeNetworking?: boolean;
+  connectTimeoutMs?: number;
 }
 
 export const DEFAULT_MAX_REDIRECTS = 10;
+export const DEFAULT_CONNECT_TIMEOUT_MS = 10000;
+export const ADDRESS_FALLBACK_TIMEOUT_MS = 250;
+
+export function effectiveConnectTimeoutMs(network: NetworkSettings): number {
+  const value = network.connectTimeoutMs;
+  return value !== undefined && Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_CONNECT_TIMEOUT_MS;
+}
 
 export function normalizeMaxRedirects(value: unknown): number {
   const parsed = Number(value);

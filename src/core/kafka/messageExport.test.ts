@@ -32,8 +32,8 @@ describe('exportAsCsv', () => {
   it('writes a header and one escaped row per message', () => {
     const csv = exportAsCsv([message({ key: null, value: 'a,"b"\nc ✓', headers: undefined })]);
     const [header, ...rest] = csv.split('\r\n');
-    expect(header).toBe('topic,partition,offset,key,timestamp,timestampIso,receivedAt,receivedAtIso,headers,value');
-    expect(rest.join('\r\n')).toBe('orders,1,42,,1699999999000,2023-11-14T22:13:19.000Z,1700000000000,2023-11-14T22:13:20.000Z,{},"a,""b""\nc ✓"\r\n');
+    expect(header).toBe('topic,partition,offset,key,timestamp,timestampIso,receivedAt,receivedAtIso,headers,value,tombstone');
+    expect(rest.join('\r\n')).toBe('orders,1,42,,1699999999000,2023-11-14T22:13:19.000Z,1700000000000,2023-11-14T22:13:20.000Z,{},"a,""b""\nc ✓",false\r\n');
   });
 
   it('quotes JSON headers because they contain commas and quotes', () => {

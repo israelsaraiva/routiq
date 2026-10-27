@@ -1,44 +1,19 @@
 import { isUnderReplicated, offsetDistance } from '../../../core/kafka/admin';
+import { TopicConfigChanges } from '../../../core/kafka/topicConfigEdit';
 import { KafkaTopicConfigEntry, KafkaTopicInfo } from '../../../shared/kafkaAdminTypes';
 import { Badge } from '../../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { IncreasePartitions } from './IncreasePartitions';
+import { TopicConfigEditor } from './TopicConfigEditor';
 
 interface Props {
   topic: KafkaTopicInfo;
   configs?: KafkaTopicConfigEntry[];
+  onAlterConfigs: (changes: TopicConfigChanges, validateOnly: boolean) => void;
+  onIncreasePartitions: (totalPartitions: number) => void;
 }
 
-function ConfigTable({ configs }: { configs?: KafkaTopicConfigEntry[] }) {
-  if (!configs) {
-    return <div className="kafka-empty">Loading configuration…</div>;
-  }
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Config</TableHead>
-          <TableHead>Value</TableHead>
-          <TableHead>Source</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {[...configs]
-          .sort((left, right) => Number(left.isDefault) - Number(right.isDefault) || left.name.localeCompare(right.name))
-          .map((entry) => (
-            <TableRow key={entry.name}>
-              <TableCell className="kafka-admin-name">{entry.name}</TableCell>
-              <TableCell className="kafka-admin-name">{entry.value ?? '—'}</TableCell>
-              <TableCell>
-                <Badge variant={entry.isDefault ? 'secondary' : 'info'}>{entry.isDefault ? 'default' : 'overridden'}</Badge>
-              </TableCell>
-            </TableRow>
-          ))}
-      </TableBody>
-    </Table>
-  );
-}
-
-export function TopicDetail({ topic, configs }: Props) {
+export function TopicDetail({ topic, configs, onAlterConfigs, onIncreasePartitions }: Props) {
   return (
     <div className="kafka-admin-detail">
       <h4 className="kafka-section-title">Partitions</h4>
@@ -70,8 +45,9 @@ export function TopicDetail({ topic, configs }: Props) {
           ))}
         </TableBody>
       </Table>
-      <h4 className="kafka-section-title">Configuration (read-only)</h4>
-      <ConfigTable configs={configs} />
+      <IncreasePartitions topic={topic.name} currentPartitions={topic.partitions.length} onIncrease={onIncreasePartitions} />
+      <h4 className="kafka-section-title">Configuration</h4>
+      <TopicConfigEditor topic={topic.name} configs={configs} onAlter={onAlterConfigs} />
     </div>
   );
 }

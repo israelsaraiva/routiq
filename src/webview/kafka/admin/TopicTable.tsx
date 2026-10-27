@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Delete02Icon } from '@hugeicons/core-free-icons';
+import { TopicConfigChanges } from '../../../core/kafka/topicConfigEdit';
 import { KafkaTopicConfigEntry, KafkaTopicInfo } from '../../../shared/kafkaAdminTypes';
 import { Icon } from '../../Icon';
 import { ConfirmAction } from '../../components/ConfirmAction';
@@ -15,11 +16,13 @@ interface Props {
   onAddToListener: (topic: string) => void;
   onConsume: (topic: string) => void;
   onDelete: (topic: string) => void;
+  onAlterConfigs: (topic: string, changes: TopicConfigChanges, validateOnly: boolean) => void;
+  onIncreasePartitions: (topic: string, totalPartitions: number) => void;
 }
 
 const COLUMN_COUNT = 5;
 
-export function TopicTable({ topics, configs, onLoadConfigs, onAddToListener, onConsume, onDelete }: Props) {
+export function TopicTable({ topics, configs, onLoadConfigs, onAddToListener, onConsume, onDelete, onAlterConfigs, onIncreasePartitions }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const toggle = (topic: string) => {
@@ -77,7 +80,12 @@ export function TopicTable({ topics, configs, onLoadConfigs, onAddToListener, on
             {expanded === topic.name && (
               <TableRow>
                 <TableCell colSpan={COLUMN_COUNT}>
-                  <TopicDetail topic={topic} configs={configs[topic.name]} />
+                  <TopicDetail
+                    topic={topic}
+                    configs={configs[topic.name]}
+                    onAlterConfigs={(changes, validateOnly) => onAlterConfigs(topic.name, changes, validateOnly)}
+                    onIncreasePartitions={(total) => onIncreasePartitions(topic.name, total)}
+                  />
                 </TableCell>
               </TableRow>
             )}

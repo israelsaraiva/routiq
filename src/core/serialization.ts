@@ -49,7 +49,14 @@ function orderBody(body: RequestBody): RequestBody {
 }
 
 function orderGrpc(grpc: GrpcConfig): GrpcConfig {
-  return { tls: grpc.tls, protoFiles: [...grpc.protoFiles], importPaths: [...grpc.importPaths], service: grpc.service, method: grpc.method };
+  return {
+    tls: grpc.tls,
+    protoFiles: [...grpc.protoFiles],
+    importPaths: [...grpc.importPaths],
+    service: grpc.service,
+    method: grpc.method,
+    ...(grpc.useReflection === undefined ? {} : { useReflection: grpc.useReflection }),
+  };
 }
 
 function orderStreamFields(request: RequestModel): Partial<RequestModel> {

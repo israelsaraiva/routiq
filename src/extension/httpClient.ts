@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import { Agent, Dispatcher, ProxyAgent, fetch } from 'undici';
+import { Agent, Dispatcher, ProxyAgent, buildConnector, fetch } from 'undici';
 import { buildDigestAuthorization, digestUriFromUrl, parseDigestChallenge } from '../core/digest';
-import { NetworkSettings } from '../core/network';
+import { ADDRESS_FALLBACK_TIMEOUT_MS, NetworkSettings, effectiveConnectTimeoutMs } from '../core/network';
+import { NetworkErrorKind, classifyError, resolveTimeoutKind, shapeOf, timeoutMessage, usesVsCodeNetworking, withRoutingHint } from '../core/networkErrors';
 import { PreparedRequest } from '../core/requestBuilder';
 import { resolveRedirect } from '../core/redirects';
 import { ResponseModel, ResponseTiming } from '../shared/types';
@@ -30,16 +31,25 @@ export const REQUEST_ABORTED_MESSAGE = 'Request aborted';
 
 const dispatchers = new Map<string, Dispatcher>();
 
+export function connectOptionsFor(network: NetworkSettings): buildConnector.BuildOptions {
+  return {
+    rejectUnauthorized: network.rejectUnauthorized,
+    timeout: effectiveConnectTimeoutMs(network),
+    autoSelectFamily: true,
+    autoSelectFamilyAttemptTimeout: ADDRESS_FALLBACK_TIMEOUT_MS,
+  } as buildConnector.BuildOptions;
+}
+
 export function dispatcherFor(network: NetworkSettings): Dispatcher {
-  const key = `${network.proxyUrl ?? ''}|${network.rejectUnauthorized}`;
+  const key = `${network.proxyUrl ?? ''}|${network.rejectUnauthorized}|${effectiveConnectTimeoutMs(network)}`;
   const cached = dispatchers.get(key);
   if (cached) {
     return cached;
   }
-  const tls = { rejectUnauthorized: network.rejectUnauthorized };
+  const connect = connectOptionsFor(network);
   const created = network.proxyUrl
-    ? new ProxyAgent({ uri: network.proxyUrl, requestTls: tls, proxyTls: tls })
-    : new Agent({ connect: tls });
+    ? new ProxyAgent({ uri: network.proxyUrl, requestTls: connect, proxyTls: connect })
+    : new Agent({ connect });
   dispatchers.set(key, created);
   return created;
 }
@@ -48,46 +58,23 @@ function errorResponse(message: string, timeMs: number): ResponseModel {
   return { status: 0, statusText: '', timeMs, sizeBytes: 0, headers: [], body: '', error: message };
 }
 
-export function usesVsCodeNetworking(network: NetworkSettings): boolean {
-  return network.useVsCodeNetworking === true;
+interface RequestFailure {
+  message: string;
+  kind: NetworkErrorKind;
 }
 
-function withoutCredentials(proxyUrl: string): string {
-  try {
-    const parsed = new URL(proxyUrl);
-    parsed.username = '';
-    parsed.password = '';
-    return parsed.toString().replace(/\/$/, '');
-  } catch {
-    return proxyUrl;
-  }
-}
-
-function describeRouting(network: NetworkSettings): string {
-  if (usesVsCodeNetworking(network)) {
-    return 'via VS Code networking';
-  }
-  return network.proxyUrl ? `via proxy ${withoutCredentials(network.proxyUrl)}` : 'direct connection';
-}
-
-function withRoutingHint(message: string, network: NetworkSettings): string {
-  return `${message} (${describeRouting(network)}). Check the routiq.proxy, http.proxy and routiq.timeoutMs settings.`;
-}
-
-function isTimeout(error: unknown): boolean {
-  return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-}
-
-function describeError(error: unknown, options: SendOptions): string {
-  if (isTimeout(error)) {
-    return withRoutingHint(`Request timed out after ${options.timeoutMs} ms`, options.network);
+function describeError(error: unknown, options: SendOptions): RequestFailure {
+  const shape = shapeOf(error);
+  const context = { timeoutMs: options.timeoutMs, connectTimeoutMs: effectiveConnectTimeoutMs(options.network) };
+  const kind = resolveTimeoutKind(classifyError(shape), context);
+  if (kind === 'connect-timeout' || kind === 'response-timeout' || kind === 'timeout') {
+    return { kind, message: withRoutingHint(timeoutMessage(kind, context), options.network) };
   }
   if (error instanceof Error) {
-    const cause = (error as Error & { cause?: { message?: string } }).cause;
-    const message = cause?.message ? `${error.message}: ${cause.message}` : error.message;
-    return cause || 'code' in error ? withRoutingHint(message, options.network) : message;
+    const message = shape.causeMessage ? `${shape.message}: ${shape.causeMessage}` : shape.message;
+    return { kind, message: shape.causeMessage || shape.code ? withRoutingHint(message, options.network) : message };
   }
-  return String(error);
+  return { kind, message: String(error) };
 }
 
 function sendViaTransport(
@@ -104,6 +91,7 @@ function sendViaTransport(
       headers,
       body,
       rejectUnauthorized: options.network.rejectUnauthorized,
+      connectTimeoutMs: effectiveConnectTimeoutMs(options.network),
       signal,
     });
   }
@@ -239,15 +227,27 @@ function linkedAbortController(timeoutMs: number, external: AbortSignal | undefi
   };
 }
 
-export async function sendRequest(prepared: PreparedRequest, options: SendOptions): Promise<ResponseModel> {
+export interface DetailedResult {
+  response: ResponseModel;
+  errorKind?: NetworkErrorKind;
+}
+
+export async function sendRequestDetailed(prepared: PreparedRequest, options: SendOptions): Promise<DetailedResult> {
   const startedAt = Date.now();
   const { signal, release } = linkedAbortController(options.timeoutMs, options.signal);
   try {
-    return await toResponseModel(await followRedirects(prepared, options, signal), startedAt);
+    return { response: await toResponseModel(await followRedirects(prepared, options, signal), startedAt) };
   } catch (error) {
-    const message = options.signal?.aborted ? REQUEST_ABORTED_MESSAGE : describeError(error, options);
-    return errorResponse(message, Date.now() - startedAt);
+    if (options.signal?.aborted) {
+      return { response: errorResponse(REQUEST_ABORTED_MESSAGE, Date.now() - startedAt) };
+    }
+    const failure = describeError(error, options);
+    return { response: errorResponse(failure.message, Date.now() - startedAt), errorKind: failure.kind };
   } finally {
     release();
   }
+}
+
+export async function sendRequest(prepared: PreparedRequest, options: SendOptions): Promise<ResponseModel> {
+  return (await sendRequestDetailed(prepared, options)).response;
 }

@@ -10,6 +10,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { AuthFields, storedSecretsOf } from './AuthFields';
 import { FormField } from './FormField';
+import { ProtobufFields } from './ProtobufFields';
 import { StartPositionFields } from './StartPositionFields';
 
 const NO_COLLECTION = '__none__';
@@ -81,6 +82,7 @@ export function ConnectionForm({ draft, profiles, collections, status, hasStored
       <FormField label="Schema Registry password">
         {(id) => <Input id={id} type="password" value={draft.schemaRegistryPassword ?? ''} onChange={(event) => patch({ schemaRegistryPassword: event.target.value })} />}
       </FormField>
+      <ProtobufFields draft={draft} onChange={patch} />
       <FormField label="Variables from collection">
         {() => (
           <OptionSelect

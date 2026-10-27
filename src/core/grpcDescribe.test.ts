@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import * as protoLoader from '@grpc/proto-loader';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { GrpcServiceDescription } from '../shared/types';
-import { allowsComposer, describeCallShape, parseMethodKey, methodKey, shouldReplaceMessage, addUniquePath, removePathAt } from './grpcConfig';
+import { allowsComposer, describeCallShape, parseMethodKey, methodKey, shouldReplaceMessage, usesReflection, addUniquePath, removePathAt } from './grpcConfig';
 import { ProtoDefinitions, describeServices } from './grpcDescribe';
 import { grpcStatusName, normalizeGrpcTarget, prepareGrpcCall } from './grpcPreparation';
 import { createRequest } from './factories';
@@ -78,5 +78,17 @@ describe('grpc call preparation', () => {
     expect(normalizeGrpcTarget(' https://host:443/ ')).toBe('host:443');
     expect(grpcStatusName(14)).toBe('UNAVAILABLE');
     expect(grpcStatusName(99)).toBe('CODE_99');
+  });
+});
+
+describe('usesReflection', () => {
+  it('defaults to reflection only while no proto file is configured', () => {
+    expect(usesReflection({ protoFiles: [] })).toBe(true);
+    expect(usesReflection({ protoFiles: ['/a.proto'] })).toBe(false);
+  });
+
+  it('honours an explicit choice', () => {
+    expect(usesReflection({ protoFiles: ['/a.proto'], useReflection: true })).toBe(true);
+    expect(usesReflection({ protoFiles: [], useReflection: false })).toBe(false);
   });
 });

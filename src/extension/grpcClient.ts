@@ -3,6 +3,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import { describeServices, ProtoDefinitions, ProtoMethodDefinition } from '../core/grpcDescribe';
 import { PreparedGrpcCall, describeGrpcStatus, grpcStatusName, isBinaryMetadataKey, parseMessageJson } from '../core/grpcPreparation';
 import { GrpcCallStatus, GrpcServiceDescription } from '../shared/types';
+import { loadReflectionDefinitions } from './grpcReflection';
 import type { StreamConnection, StreamHandlers } from './streamConnections';
 
 type LoadedDefinitions = protoLoader.PackageDefinition;
@@ -24,6 +25,25 @@ export async function describeProtoServices(source: ProtoSource): Promise<GrpcSe
 
 export interface GrpcTlsOptions {
   rejectUnauthorized: boolean;
+}
+
+type DefinitionSource = ProtoSource & Pick<PreparedGrpcCall, 'target' | 'tls' | 'useReflection' | 'metadata' | 'deadlineMs'>;
+
+async function loadReflectedDefinitions(source: DefinitionSource, tls: GrpcTlsOptions): Promise<LoadedDefinitions> {
+  return loadReflectionDefinitions({
+    target: source.target,
+    credentials: createCredentials(source.tls, tls),
+    metadata: buildMetadata(source.metadata),
+    deadlineMs: source.deadlineMs,
+  });
+}
+
+async function loadDefinitions(source: DefinitionSource, tls: GrpcTlsOptions): Promise<LoadedDefinitions> {
+  return source.useReflection ? loadReflectedDefinitions(source, tls) : loadProtoDefinitions(source);
+}
+
+export async function describeGrpcServices(source: DefinitionSource, tls: GrpcTlsOptions): Promise<GrpcServiceDescription[]> {
+  return describeServices((await loadDefinitions(source, tls)) as unknown as ProtoDefinitions);
 }
 
 function createCredentials(tls: boolean, options: GrpcTlsOptions): grpc.ChannelCredentials {
@@ -48,11 +68,11 @@ function toText(message: unknown): string {
   return JSON.stringify(message, null, 2);
 }
 
-function findMethodDefinition(definitions: LoadedDefinitions, serviceName: string, methodName: string): ProtoMethodDefinition & grpc.MethodDefinition<object, object> {
+function findMethodDefinition(definitions: LoadedDefinitions, serviceName: string, methodName: string, source: string): ProtoMethodDefinition & grpc.MethodDefinition<object, object> {
   const service = definitions[serviceName] as unknown as Record<string, grpc.MethodDefinition<object, object> & ProtoMethodDefinition> | undefined;
   const method = service && Object.values(service).find((candidate) => candidate.path === `/${serviceName}/${methodName}`);
   if (!method) {
-    throw new Error(`Method ${serviceName}/${methodName} not found in the selected proto files`);
+    throw new Error(`Method ${serviceName}/${methodName} not found in ${source}`);
   }
   return method;
 }
@@ -103,8 +123,8 @@ export interface GrpcConnection extends StreamConnection {
 }
 
 export async function connectGrpc(prepared: PreparedGrpcCall, tls: GrpcTlsOptions, handlers: StreamHandlers): Promise<GrpcConnection> {
-  const definitions = await loadProtoDefinitions(prepared);
-  const methodDefinition = findMethodDefinition(definitions, prepared.service, prepared.method);
+  const definitions = await loadDefinitions(prepared, tls);
+  const methodDefinition = findMethodDefinition(definitions, prepared.service, prepared.method, prepared.useReflection ? 'the server reflection response' : 'the selected proto files');
   const client = new grpc.Client(prepared.target, createCredentials(prepared.tls, tls));
   const opened = openCallOrCloseClient(client, methodDefinition, prepared, handlers);
   const finish = (status: grpc.StatusObject) => {

@@ -1,9 +1,11 @@
 import { DEFAULT_GRPC_CONFIG, RequestModel } from '../shared/types';
+import { usesReflection } from './grpcConfig';
 import { substituteVariables } from './variables';
 
 export interface PreparedGrpcCall {
   target: string;
   tls: boolean;
+  useReflection: boolean;
   protoFiles: string[];
   importPaths: string[];
   service: string;
@@ -48,6 +50,7 @@ export function prepareGrpcCall(request: RequestModel, values: Record<string, st
   return {
     target: normalizeGrpcTarget(substituteVariables(request.url, values)),
     tls: config.tls,
+    useReflection: usesReflection(config),
     protoFiles: substituteAll(config.protoFiles),
     importPaths: substituteAll(config.importPaths),
     service: config.service,

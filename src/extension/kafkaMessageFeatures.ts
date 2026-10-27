@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { buildRequestFromItem } from '../core/kafka/messageToRequest';
 import { createRateLimiter } from '../core/kafka/rateLimiter';
 import { fromBase64 } from '../core/kafka/wireFormat';
-import { KafkaSaveAsRequestItem } from '../shared/kafkaMessageTypes';
+import { KafkaSaveAsRequestItem, KafkaValueFormat } from '../shared/kafkaMessageTypes';
 import { KafkaHostMessage, KafkaWebviewMessage } from '../shared/types';
 import { pickDestination } from './destinationPicker';
 import { KafkaValueDecoder } from './kafkaDecoding';
@@ -29,7 +29,7 @@ export class KafkaMessageFeatures {
       case 'kafkaSaveUiState':
         return this.dependencies.settings.updateUi(message.ui);
       case 'kafkaDecode':
-        return this.decode(message.messageId, message.base64);
+        return this.decode(message.messageId, message.topic, message.base64, message.format);
       case 'kafkaRuleHit':
         return this.notifyRuleHit(message.ruleName, message.count, message.sample);
       case 'kafkaSaveAsRequest':
@@ -37,8 +37,10 @@ export class KafkaMessageFeatures {
     }
   }
 
-  private async decode(messageId: string, base64: string): Promise<void> {
-    const decoded = await this.dependencies.decoder.decodeBytes(fromBase64(base64));
+  private async decode(messageId: string, topic: string, base64: string, format: KafkaValueFormat): Promise<void> {
+    const { decoder } = this.dependencies;
+    const bytes = fromBase64(base64);
+    const decoded = format === 'protobuf' ? await decoder.decodeProtobuf(bytes, topic) : await decoder.decodeBytes(bytes, topic);
     this.dependencies.post({ type: 'kafkaDecoded', messageId, decoded });
   }
 

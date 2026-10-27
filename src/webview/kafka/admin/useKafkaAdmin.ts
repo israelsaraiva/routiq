@@ -40,6 +40,8 @@ const AREA_BY_KIND: Record<KafkaAdminCommandKind, KafkaAdminArea> = {
   describeTopicConfigs: 'topics',
   createTopic: 'topics',
   deleteTopic: 'topics',
+  alterTopicConfigs: 'topics',
+  increasePartitions: 'topics',
   listGroups: 'groups',
   describeGroup: 'groups',
   deleteGroup: 'groups',
@@ -100,6 +102,10 @@ function followUpCommand(command: KafkaAdminCommand): KafkaAdminCommand | undefi
   switch (command.kind) {
     case 'createTopic':
     case 'deleteTopic':
+      return { kind: 'listTopics' };
+    case 'alterTopicConfigs':
+      return command.validateOnly ? undefined : { kind: 'describeTopicConfigs', topic: command.topic };
+    case 'increasePartitions':
       return { kind: 'listTopics' };
     case 'deleteGroup':
       return { kind: 'listGroups' };

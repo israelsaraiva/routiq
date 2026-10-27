@@ -1,4 +1,5 @@
 import { KafkaMessage, KafkaProfile } from '../../shared/types';
+import { isTombstone } from './tombstone';
 
 export interface CommandTarget {
   brokers: string;
@@ -39,8 +40,8 @@ function kcatSecurityOptions(target: CommandTarget): string[] {
   return [...(protocol ? [`security.protocol=${protocol}`] : []), ...sasl].flatMap((option) => ['-X', shellQuote(option)]);
 }
 
-function isTombstone(message: KafkaMessage): boolean {
-  return message.value === '';
+function kcatWarning(message: KafkaMessage): string | undefined {
+  return message.value === '' && !isTombstone(message) ? 'kcat skips empty input lines; an empty-string value cannot be produced with kcat.' : undefined;
 }
 
 export function buildKcatCommand(message: KafkaMessage, target: CommandTarget): BuiltCommand {
@@ -59,7 +60,7 @@ export function buildKcatCommand(message: KafkaMessage, target: CommandTarget): 
     ...(multiLine ? ['-D', MULTI_LINE_DELIMITER] : []),
   ];
   const input = isTombstone(message) ? "printf '\\n'" : `printf '%s' ${shellQuote(message.value)}`;
-  return { command: `${input} | kcat ${options.join(' ')}` };
+  return { command: `${input} | kcat ${options.join(' ')}`, warning: kcatWarning(message) };
 }
 
 function consoleProducerWarning(message: KafkaMessage): string | undefined {

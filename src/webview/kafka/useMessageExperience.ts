@@ -3,6 +3,7 @@ import { generateId } from '../../core/ids';
 import { countRuleHits } from '../../core/kafka/highlightRules';
 import { EMPTY_FILTER, filterByStructuredFilter, isFilterActive } from '../../core/kafka/messageFilter';
 import { buildSaveItems } from '../../core/kafka/messageToRequest';
+import { messageBase64 } from '../../core/kafka/valueView';
 import { KafkaDecodedValue, KafkaFilterView, KafkaMessageFilter, KafkaUiState } from '../../shared/kafkaMessageTypes';
 import { KafkaMessage } from '../../shared/types';
 import { postKafkaMessage } from '../vscodeApi';
@@ -67,7 +68,7 @@ export function useMessageExperience({ messages, hostUi, decodedValues }: Inputs
   );
 
   const onDecode = useCallback<MessageDisplay['onDecode']>((message, format) => {
-    message.valueBase64 && postKafkaMessage({ type: 'kafkaDecode', messageId: message.id, base64: message.valueBase64, format });
+    postKafkaMessage({ type: 'kafkaDecode', messageId: message.id, topic: message.topic, base64: messageBase64(message), format });
   }, []);
 
   const display = useMemo<MessageDisplay>(

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatMessageContent, parseJsonOrText } from '../../core/kafka/messageParsing';
+import { TOMBSTONE_LABEL, isTombstone } from '../../core/kafka/tombstone';
 import { VALUE_FORMAT_OPTIONS, isStructuredFormat, needsHostDecoding, renderValueAs } from '../../core/kafka/valueView';
 import { KafkaMessageViewMode, KafkaValueFormat } from '../../shared/kafkaMessageTypes';
 import { KafkaMessage } from '../../shared/types';
@@ -22,6 +23,19 @@ function copyText(text: string): void {
 }
 
 export function ValueViewer({ message }: { message: KafkaMessage }) {
+  return isTombstone(message) ? <TombstoneValue /> : <DecodedValueViewer message={message} />;
+}
+
+function TombstoneValue() {
+  return (
+    <section>
+      <h4 className="kafka-section-title">Value</h4>
+      <pre className="kafka-pre kafka-tombstone">{TOMBSTONE_LABEL}</pre>
+    </section>
+  );
+}
+
+function DecodedValueViewer({ message }: { message: KafkaMessage }) {
   const { viewMode, onViewModeChange, decodedValues, onDecode, highlightTerm } = useMessageDisplay();
   const [format, setFormat] = useState<KafkaValueFormat>('auto');
   const hostDecoded = needsHostDecoding(format, message) ? decodedValues[message.id] : undefined;
@@ -32,7 +46,7 @@ export function ValueViewer({ message }: { message: KafkaMessage }) {
   const decodeIssue = hostDecoded?.error ?? message.decodeError;
 
   useEffect(() => {
-    format === 'avro' && onDecode(message, format);
+    needsHostDecoding(format, message) && onDecode(message, format);
   }, [format, message, onDecode]);
 
   return (

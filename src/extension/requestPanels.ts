@@ -10,11 +10,12 @@ import { GraphqlSchemaSummary, HostToWebviewMessage, RequestModel, ResponseModel
 import { onDidChangeAutoSaveSettings, readAutoSaveSettings } from './autoSaveSettings';
 import { copyRequestAsCurl } from './curlCommands';
 import { CookieStore } from './cookieStore';
-import { defaultTimeoutMs } from './networkSettings';
+import { NetworkDiagnosisPanel } from './networkDiagnosisPanel';
+import { buildSendOptions, defaultTimeoutMs } from './networkSettings';
 import { describeToken, obtainAuthorization, obtainToken } from './oauthTokens';
 import { HistoryStore } from './historyStore';
 import { pickFile, pickImportFolder, pickProtoFile } from './filePicker';
-import { describeProtoServices } from './grpcClient';
+import { describeGrpcServices } from './grpcClient';
 import { prepareGrpcCall } from '../core/grpcPreparation';
 import { createIntrospectionRequest, parseIntrospectionResponse } from '../core/graphql/introspection';
 import { CachedSchema, GraphqlSchemaStore } from './graphqlSchemaStore';
@@ -38,6 +39,7 @@ export class RequestPanels implements vscode.Disposable {
   private readonly requestFocusEmitter = new vscode.EventEmitter<string>();
   readonly onDidFocusRequest = this.requestFocusEmitter.event;
   private focusedRequestId: string | undefined;
+  private readonly networkDiagnosis = new NetworkDiagnosisPanel();
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -73,6 +75,7 @@ export class RequestPanels implements vscode.Disposable {
     this.autoSaveSubscription.dispose();
     this.focusEmitter.dispose();
     this.requestFocusEmitter.dispose();
+    this.networkDiagnosis.dispose();
     [...this.panels.values()].forEach((panel) => panel.dispose());
     [...this.streams.values()].forEach((session) => session.dispose());
   }
@@ -157,7 +160,10 @@ export class RequestPanels implements vscode.Disposable {
 
   private async loadGrpcServices(requestId: string, panel: vscode.WebviewPanel, request: RequestModel): Promise<void> {
     try {
-      const services = await describeProtoServices(prepareGrpcCall(request, this.variablesFor(requestId)));
+      await this.loadSecrets(requestId);
+      const prepared = prepareGrpcCall(request, this.variablesFor(requestId));
+      const { network } = buildSendOptions(`https://${prepared.target}`, request.timeoutMs);
+      const services = await describeGrpcServices(prepared, { rejectUnauthorized: network.rejectUnauthorized });
       post(panel, { type: 'grpcServices', services });
     } catch (error) {
       post(panel, { type: 'grpcServices', services: [], error: error instanceof Error ? error.message : String(error) });
@@ -198,6 +204,8 @@ export class RequestPanels implements vscode.Disposable {
       post(panel, { type: 'saved' });
     } else if (message.type === 'copyCurl') {
       void this.copyCurl(requestId, message.request);
+    } else if (message.type === 'diagnoseNetwork') {
+      void this.diagnoseNetwork(requestId, message.request);
     } else if (message.type === 'setActiveEnvironment') {
       this.setActiveEnvironment(requestId, message.environmentId);
     } else if (message.type === 'pickFile') {
@@ -324,6 +332,21 @@ export class RequestPanels implements vscode.Disposable {
   private async copyCurl(requestId: string, request: RequestModel): Promise<void> {
     await this.loadSecrets(requestId);
     await copyRequestAsCurl(request, this.variablesFor(requestId));
+  }
+
+  async diagnoseNetwork(requestId: string, request: RequestModel): Promise<void> {
+    await this.loadSecrets(requestId);
+    const prepared = prepareRequest(request, this.variablesFor(requestId));
+    await this.networkDiagnosis.show({ template: request.url, prepared, timeoutMs: request.timeoutMs });
+  }
+
+  async diagnoseActiveRequest(): Promise<void> {
+    const location = this.focusedRequestId ? this.storage.findRequest(this.focusedRequestId) : undefined;
+    if (!location) {
+      void vscode.window.showInformationMessage('Open a request first, then run Diagnose Network.');
+      return;
+    }
+    await this.diagnoseNetwork(location.request.id, location.request);
   }
 
   private setActiveEnvironment(requestId: string, environmentId?: string): void {

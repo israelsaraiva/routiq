@@ -1,36 +1,63 @@
 # Routiq
 
-A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, GraphQL, WebSocket, SSE, gRPC and Kafka, with collections you can keep in git.
+**Test REST, GraphQL, WebSocket, SSE, gRPC and Kafka without leaving VS Code.** Routiq is a lightweight Insomnia/Postman-style API client whose collections are plain JSON files you can commit to git.
 
 ![Routiq request editor and response viewer](media/screenshots/response.png)
 
-## Features
+## Highlights
 
-- **Requests**: params, headers, bodies (JSON, XML, text, form, multipart, binary, GraphQL) and auth (bearer, basic, API key, OAuth 2.0, Digest).
-- **Collections and folders** with drag-and-drop reordering, sorting (A→Z, Z→A, by method) and subcollections, one JSON file each, optionally stored in your workspace (`.routiq`) and committed to git.
-- **Environments and variables**, including secret variables, with live `{{variable}}` highlighting (defined vs unresolved), hover values and autocomplete.
-- **GraphQL** with schema introspection and completion, **Convert to GraphQL / HTTP** from the request toolbar **…** menu, **SSE**, **WebSocket** and **gRPC**.
-- **Kafka listener**: consume topics live, group messages into flows by flowId, search/filter, produce messages and browse Splunk JSON exports.
-- **Scripts and tests**: pre-request and post-response scripts, plus a collection/folder runner.
-- **Response viewer**: syntax highlighting, pretty/raw, JSON path filter, search, save to file.
-- **Import / export**: Routiq JSON, Postman v2.1, Insomnia, OpenAPI/Swagger and cURL; copy as cURL.
-- **History**, cookie jar, redirects, proxy and TLS options.
+| | |
+| --- | --- |
+| **Every protocol** | HTTP/REST, GraphQL (schema introspection and completion), SSE, WebSocket, gRPC and a live Kafka listener. |
+| **Collections in git** | Folders, subcollections, drag-and-drop and sorting; one JSON file each, optionally stored in your workspace (`.routiq`). |
+| **Variables and environments** | `{{variables}}` with live highlighting (defined vs unresolved), hover values, autocomplete and secret variables. |
+| **Scripts and tests** | Pre-request and post-response scripts, plus a collection/folder runner. |
+| **Import / export** | Routiq JSON, Postman v2.1, Insomnia, OpenAPI/Swagger and cURL; copy as cURL; convert between HTTP and GraphQL. |
+| **Kafka tooling** | Flows grouped by flowId, filters, produce/resend, Splunk log browsing, topics, consumer groups and cluster admin. |
+| **Everyday comfort** | Auth (bearer, basic, API key, OAuth 2.0, Digest), history, cookie jar, redirects, proxy and TLS options, pretty/raw responses with JSON path filter. |
+
+## Install
+
+Search for **Routiq** in the VS Code Extensions view, or run `ext install israelsaraiva.routiq`. Requires VS Code 1.85 or newer.
 
 ## Quick start
 
-1. Install Routiq and open the **Routiq** view in the activity bar.
-2. Click **New Collection**, then add a request or import one (cURL, Postman, Insomnia, OpenAPI).
-3. Enter a URL and press **Send**; **Save** or Ctrl/Cmd+S persists the request.
+**HTTP**
+
+1. Open the **Routiq** view in the activity bar and click **New Collection**; add a request or import one (cURL, Postman, Insomnia, OpenAPI).
+2. Enter a URL and press **Send**; the response appears below with status, time, size and a pretty-printed body.
+3. **Save** or Ctrl/Cmd+S persists the request. Define `{{variables}}` under **Environments** to reuse them across requests.
+
+**Kafka**
+
+1. Open the **Kafka** view in the activity bar and click **New Connection** (or run **Routiq: Open Kafka Listener**).
+2. Enter brokers and topics (or pick **Use Test Kafka** for a local broker), choose a start position and press **Connect**.
+3. Watch messages arrive grouped by flow, then use the **Send**, **Topics**, **Consumer groups** and **Cluster** tabs.
+
+Need more? Run **Routiq: Help** for a searchable guide and **Routiq: About** for versions and diagnostics (see [Help and About](#help-and-about)).
 
 ## Screenshots
 
-| GraphQL | gRPC |
-| --- | --- |
-| ![GraphQL](media/screenshots/graphql.png) | ![gRPC](media/screenshots/grpc.png) |
+![Variables highlighted with autocomplete](media/screenshots/variables.png)
+*Variables are highlighted as defined or unresolved, with autocomplete while you type.*
 
-| Scripts and tests | Environments |
+![GraphQL request](media/screenshots/graphql.png)
+*GraphQL queries with variables, schema support and a pretty-printed response.*
+
+![Kafka listener showing messages grouped by flow](media/screenshots/kafka-messages.png)
+*The Kafka listener groups messages into flows and filters by topic, text and headers.*
+
+| Consumer groups | Send to Kafka |
 | --- | --- |
-| ![Scripts](media/screenshots/scripts.png) | ![Environments](media/screenshots/environments.png) |
+| ![Kafka consumer groups with lag](media/screenshots/kafka-groups.png) | ![Kafka send form](media/screenshots/kafka-send.png) |
+
+| gRPC | Scripts and tests |
+| --- | --- |
+| ![gRPC](media/screenshots/grpc.png) | ![Scripts](media/screenshots/scripts.png) |
+
+| Environments | Collection runner |
+| --- | --- |
+| ![Environments](media/screenshots/environments.png) | ![Collection runner](media/screenshots/runner.png) |
 
 ## Settings
 
@@ -43,6 +70,7 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 | `routiq.history.maxEntries` | `50` | History entries kept per request. |
 | `routiq.history.maxBodyBytes` | `262144` | Response bytes stored per history entry. |
 | `routiq.timeoutMs` | `30000` | Request timeout. |
+| `routiq.connectTimeoutMs` | `10000` | Connection timeout, separate from `routiq.timeoutMs`: a *connect timeout* means the host cannot be reached, a *response timeout* means it was reached but did not answer. |
 | `routiq.followRedirects` | `true` | Follow HTTP redirects. |
 | `routiq.maxRedirects` | `10` | Maximum redirects followed. |
 | `routiq.proxy` | `""` | Proxy URL; empty falls back to `http.proxy` and environment variables. |
@@ -55,10 +83,6 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 ## Security note on scripts
 
 Pre-request and post-response scripts are JavaScript that runs on your machine. Only run scripts from collections you trust; Routiq asks for consent before running scripts of a collection and applies a time limit (see [Script security](#script-security)).
-
-## Requirements
-
-VS Code 1.85 or newer.
 
 ## Usage
 
@@ -121,7 +145,7 @@ OAuth 2.0 tokens are fetched by the extension host (client secret sent via HTTP 
 - **Import** (toolbar button, collection/folder context menu or **Routiq: Import…**) offers **From file…**, **From clipboard** and **cURL command…**. **Routiq: Import from Clipboard** (also a toolbar button) reads the clipboard and auto-detects the content:
   - a **cURL command** (starts with `curl`, optionally after `$ `) → a request in a chosen collection/folder;
   - a **Routiq export** or a single collection file (JSON);
-  - a **Postman v2.1 collection** (JSON; nested `item[]` folders become folders; name, method, URL, headers, raw (JSON/XML/text), urlencoded, formdata (text/file), GraphQL and binary-file bodies, bearer/basic/API key/digest/OAuth 2.0 (client-credentials, password) auth, collection variables; pre-request and test scripts are translated best-effort to the `rq` API — `pm.environment/variables/collectionVariables/globals.set/get`, `pm.response.code/json()/text()`, `pm.test` and the common `pm.expect(...).to.equal/eql/include/above/below/…` and `pm.response.to.have.status` forms; lines that cannot be translated are kept as `// [not translated]` comments and reported as warnings; collection- and folder-level scripts are prepended to every contained request's script — pre-request outermost first, test scripts innermost first).
+  - a **Postman v2.1 collection** (JSON; nested `item[]` folders become folders; name, method, URL, headers, raw (JSON/XML/text), urlencoded, formdata (text/file), GraphQL and binary-file bodies, bearer/basic/API key/digest/OAuth 2.0 (client-credentials, password) auth, with collection- and folder-level auth copied onto requests that inherit it; unsupported auth (OAuth 2.0 authorization code/implicit, AWS Signature v4, Hawk, NTLM, Akamai EdgeGrid, …) and ignored OAuth 2.0/Digest settings are reported as import warnings; collection variables; pre-request and test scripts are translated best-effort to the `rq` API — `pm.environment/variables/collectionVariables/globals.set/get`, `pm.response.code/json()/text()`, `pm.test` and the common `pm.expect(...).to.equal/eql/include/above/below/…` and `pm.response.to.have.status` forms; lines that cannot be translated are kept as `// [not translated]` comments and reported as warnings; collection- and folder-level scripts are prepended to every contained request's script — pre-request outermost first, test scripts innermost first).
   - a **Postman environment** (`*.postman_environment.json`) → added as an environment of a chosen collection (right-click the collection, or you are asked); `secret` variables are stored in the secret vault.
   - an **OpenAPI 3.x / Swagger 2.0** document (JSON or YAML): one folder per (first) tag, URLs as `{{baseUrl}}/path/{{param}}` with `baseUrl` taken from `servers[0]` (or Swagger `host`/`basePath`), query/header parameters (optional ones disabled), example bodies generated from schemas, `multipart/form-data` bodies (binary properties become file fields), and `securitySchemes` mapped to request auth (http bearer/basic, apiKey in header/query and oauth2 `clientCredentials`/`password` flows with `tokenUrl` and scopes — the first usable scheme among alternatives wins; placeholders such as `{{bearerToken}}`/`{{apiKey}}` are added as empty collection variables);
   - an **Insomnia v4 export** (JSON): workspaces → collections, request groups → folders, requests with method/URL/headers/parameters/body (JSON/XML/text, form, multipart, GraphQL, binary file)/auth (bearer, basic, digest, API key, OAuth 2.0 client-credentials/password); the base environment → collection variables, sub-environments → environments (private environments and `secret` pairs become secret variables; pre-request scripts are not applicable and skipped).
@@ -155,6 +179,12 @@ Export format (version 2; version 1 exports with a flat `requests` list still im
 - **Redirects**: `routiq.followRedirects` (default on) and `routiq.maxRedirects` (default 10). 301/302 on POST and 303 switch to GET without body; 307/308 keep method and body. `Authorization`/`Cookie` headers are dropped on cross-origin hops.
 - **Proxy / TLS**: `routiq.proxy` (falls back to `http.proxy`, then `HTTPS_PROXY`/`HTTP_PROXY`, honouring `NO_PROXY`) and `routiq.rejectUnauthorized` (set to `false` for self-signed certificates).
 - **Timeout**: `routiq.timeoutMs` default, overridable per request via the timeout field next to Send. Hover the response time for a wait/download breakdown.
+- **Connect timeout**: `routiq.connectTimeoutMs` (default 10000). Unreachable IPv6 addresses fall back to IPv4 after 250 ms.
+- **Diagnose network**: *Routiq: Diagnose Network for this Request* (also in the request's `…` menu and on timeout/connection errors) checks the resolved URL, DNS, proxy resolution, TCP, HTTP through each transport and TLS, then suggests settings. Credentials and tokens are stripped; **Copy report** to share it.
+
+#### Requests time out but work in Postman
+
+Run **Diagnose network**. Typical findings: *direct fails but VS Code networking works* → set `routiq.useVsCodeNetworking` to `true` (honours the Windows system proxy/PAC and OS certificates); *only the proxy is reachable* → set `routiq.proxy`; *connect timeout* → the host/port is unreachable from this network or needs a proxy; *response timeout* → a gateway or firewall accepts the connection but does not answer. Tick **Use the real method and body** to also re-send the actual request.
 
 ### Request kinds: SSE and WebSocket
 
@@ -170,12 +200,13 @@ Export format (version 2; version 1 exports with a flat `requests` list still im
 Choose **gRPC** in New Request (tree label `gRPC`). `@grpc/grpc-js` and `@grpc/proto-loader` are bundled into the extension.
 
 - **Target**: `host:port` in the URL field (a `grpc://` prefix is stripped), plus a **TLS** toggle (certificate checks follow `routiq.rejectUnauthorized`).
-- **Schema**: add one or more `.proto` files and optional import paths with the file dialog. The methods are listed in the method dropdown with their call type (unary, server/client/bidirectional streaming). Selecting a method fills the **Message** tab with an example JSON body built from the request message fields (replaced only while the message is empty or still the previous example). Field names use the `.proto` spelling; `int64` values and enums are exchanged as strings.
+- **Server reflection**: the **Use server reflection** switch (on by default while no `.proto` file is set) lists the services and methods exposed by the server (reflection v1 and v1alpha, TLS or plaintext, request metadata sent along) and builds the example message from the reflected descriptors; **Refresh services** re-queries the server. Servers without reflection produce a friendly error.
+- **Schema**: turn reflection off to add one or more `.proto` files and optional import paths with the file dialog. The methods are listed in the method dropdown with their call type (unary, server/client/bidirectional streaming). Selecting a method fills the **Message** tab with an example JSON body built from the request message fields (replaced only while the message is empty or still the previous example). Field names use the `.proto` spelling; `int64` values and enums are exchanged as strings.
 - **Metadata**: the **Metadata** tab (key/values, `-bin` keys take base64). The timeout field is the call deadline (empty means none).
 - **Calls**: **Invoke** sends the Message for unary and server-streaming calls. For client-streaming and bidirectional calls the composer sends each message and **End stream** half-closes; **Cancel** aborts. The log shows sent/received messages, and the final status code, details and trailers appear above it.
 - `{{variables}}` work in the target, proto paths, metadata and message.
 
-Limitations: server reflection is not supported (a `.proto` file is required); metadata and trailers are shown as text; calls are recorded in history as capped transcripts and run by the collection runner (unary calls, or the first 20 messages of a stream).
+Limitations: metadata and trailers are shown as text; calls are recorded in history as capped transcripts and run by the collection runner (unary calls, or the first 20 messages of a stream).
 
 ### Body formatting
 
@@ -183,7 +214,7 @@ JSON, XML and text bodies have a **Prettify** button (or `Shift+Alt+F` in the ed
 
 ### GraphQL
 
-Choose **GraphQL** in the New Request picker (tree label `GQL`). The method is fixed to POST and the request is sent as a `{ query, variables, operationName }` JSON body. Existing POST requests with a GraphQL body type open in the same editor, and GraphQL bodies from cURL, Postman and Insomnia imports become GraphQL requests.
+Choose **GraphQL** in the New Request picker (tree label `GQL`). The method is fixed to POST and the request is sent as a `{ query, variables, operationName }` JSON body. Right-click a request in the tree and choose **Convert to GraphQL** / **Convert to HTTP** (or use the request toolbar menu); a notice offers **Undo** and lists anything that could not be carried over. Existing POST requests with a GraphQL body type open in the same editor, and GraphQL bodies from cURL, Postman and Insomnia imports become GraphQL requests.
 
 - **Query tab**: syntax-highlighted query editor, a Variables JSON editor with validation, and an operation selector that appears when the document contains several named operations. **Prettify** formats the query and variables.
 - **Schema explorer**: **Fetch schema** runs the standard introspection query through the normal send pipeline (variables, environments, auth, cookies, proxy; scripts are skipped). The schema is cached in the extension's global storage per resolved URL and reloaded when the request opens. Search types, fields and arguments, and click a field to insert it into the query.
@@ -259,7 +290,11 @@ The **Kafka** view in the Routiq activity bar lists saved connections. Click **N
 - **Filters**: free text with regex and case toggles, scope (all/key/value/headers), a JSON-path condition (`$.status == 'FAILED'`, or just a path to test existence), header key/value, partition, time range and errors-only. Named filters can be saved, applied, renamed and deleted; they are stored in global state. Regex patterns are length-limited and invalid ones are ignored.
 - **Views**: save the current filter and topic as a tab to watch several slices of the same live connection.
 - **Value viewer**: each message value can be shown as Tree (collapsible, searchable, click a key to copy its JSON path, click a value to copy it), Text or Raw, and decoded **as** Auto / JSON / Text / Hex / Base64 / Avro.
-- **Schema Registry / Avro**: Confluent wire format (magic byte 0 + 4-byte schema id) is decoded using the connection's Schema Registry URL (falling back to the `routiq.kafka.schemaRegistryUrl` setting), with optional basic auth (password in Secret Storage). Schemas are cached by id; JSON Schema payloads are shown as JSON, Protobuf shows "Protobuf decoding not supported yet", and binary payloads or an unreachable registry fall back to a hex preview.
+- **Schema Registry / Avro**: Confluent wire format (magic byte 0 + 4-byte schema id) is decoded using the connection's Schema Registry URL (falling back to the `routiq.kafka.schemaRegistryUrl` setting), with optional basic auth (password in Secret Storage). Schemas are cached by id; JSON Schema payloads are shown as JSON, Protobuf messages are decoded with the registry schema (including references) and shown as JSON, and binary payloads or an unreachable registry fall back to a hex preview.
+- **Protobuf from a local `.proto` file**: in the connection form set a `.proto` path, a default message type and optional `topic=Type` pairs; plain protobuf payloads are decoded with it, or choose **Protobuf** in the **Value as** selector. Failures fall back to hex.
+- **Tombstones**: a null value is shown as `null (tombstone)`, stays distinct from an empty string, and is kept in exports (`null` / a `tombstone` CSV column), replay and kcat commands.
+- **CSV import**: **Import log / CSV** in the log panel also opens a Routiq CSV export.
+- **Topic administration**: in the Topics tab edit configs (validate first, then confirm; read-only and sensitive configs are locked) and increase partitions. The Cluster tab shows `inter.broker.protocol.version` when the broker reports it.
 - **Highlight rules**: text, regex or JSON-path rules colour the message border, optionally show a badge and raise a rate-limited VS Code notification; hit counts are shown in the rules dialog.
 - **Compare**: select two messages and click **Compare selected** for a side-by-side JSON diff.
 - **Save as Routiq request**: creates an HTTP POST request in a chosen collection, named `topic/flowId`, with the message value as body and its headers as request headers (URL left empty).
@@ -315,6 +350,7 @@ Each collection is one pretty-printed JSON file (2-space indent, stable key orde
 | `routiq.autoSaveDelayMs` | `5000` | Inactivity delay before auto save, in milliseconds (minimum 500). |
 | `routiq.autoReveal` | `true` | Select (without focusing) the active request's item in the sidebar tree, expanding its folders; skipped when the tree filter hides it. |
 | `routiq.timeoutMs` | `30000` | Request timeout. |
+| `routiq.connectTimeoutMs` | `10000` | Connection timeout, separate from `routiq.timeoutMs`: a *connect timeout* means the host cannot be reached, a *response timeout* means it was reached but did not answer. |
 | `routiq.history.maxEntries` | `50` | History entries kept per request. |
 | `routiq.history.maxBodyBytes` | `262144` | Response body bytes stored per history entry (larger bodies are truncated). |
 

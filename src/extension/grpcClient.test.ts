@@ -34,7 +34,7 @@ function record(): Recording {
 }
 
 function callFor(method: string, message = '{"name":"Ada"}'): PreparedGrpcCall {
-  return { target: '', tls: false, protoFiles: [PROTO_PATH], importPaths: [], service: 'demo.Greeter', method, metadata: [], message };
+  return { target: '', tls: false, useReflection: false, protoFiles: [PROTO_PATH], importPaths: [], service: 'demo.Greeter', method, metadata: [], message };
 }
 
 describe('grpc client against an in-process server', () => {

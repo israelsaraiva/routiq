@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRequest } from './factories';
-import { conversionTargetOf, convertToGraphql, convertToHttp } from './requestConversion';
+import { canUndoConversion, conversionTargetOf, convertRequest, convertToGraphql, convertToHttp, describeConversion } from './requestConversion';
 import { RequestBody, RequestModel } from '../shared/types';
 
 function httpRequestWith(body: RequestBody, overrides: Partial<RequestModel> = {}): RequestModel {
@@ -108,5 +108,27 @@ describe('conversionTargetOf', () => {
     for (const kind of ['sse', 'websocket', 'grpc'] as const) {
       expect(conversionTargetOf(createRequest('a', () => 'x', kind))).toBeUndefined();
     }
+  });
+});
+
+describe('conversion undo support', () => {
+  const original = httpRequestWith(jsonBody('{"query":"{ a }"}'), { method: 'POST' });
+
+  it('allows undo only while the converted request is untouched', () => {
+    const { request: converted } = convertRequest(original, 'graphql');
+    expect(canUndoConversion(converted, { ...converted })).toBe(true);
+    expect(canUndoConversion(converted, { ...converted, url: 'https://other.test' })).toBe(false);
+  });
+
+  it('keeps the original untouched so restoring it round-trips', () => {
+    const snapshot = JSON.stringify(original);
+    const { request: toGraphql } = convertRequest(original, 'graphql');
+    expect(JSON.stringify(original)).toBe(snapshot);
+    expect(convertRequest(toGraphql, 'http').request.kind).toBeUndefined();
+  });
+
+  it('describes the conversion with its warnings', () => {
+    expect(describeConversion('graphql', [])).toBe('Converted to GraphQL.');
+    expect(describeConversion('http', ['Lost A.', 'Lost B.'])).toBe('Converted to HTTP. Lost A. Lost B.');
   });
 });

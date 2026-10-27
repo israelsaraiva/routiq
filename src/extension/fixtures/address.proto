@@ -1,0 +1,6 @@
+syntax = "proto3";
+package logistics;
+
+message Address {
+  string city = 1;
+}

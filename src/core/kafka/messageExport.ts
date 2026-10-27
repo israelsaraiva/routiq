@@ -3,6 +3,7 @@ import { KafkaMessage } from '../../shared/types';
 import { resolveFlowId } from './flowId';
 import { JsonLogEntry } from './jsonLogParser';
 import { convertToKafkaMessages } from './splunkMessages';
+import { isTombstone } from './tombstone';
 
 export interface ExportedRecord {
   topic: string;
@@ -10,14 +11,14 @@ export interface ExportedRecord {
   offset: string;
   key: string | null;
   headers: Record<string, string>;
-  value: string;
+  value: string | null;
   timestamp: number | null;
   timestampIso: string | null;
   receivedAt: number;
   receivedAtIso: string;
 }
 
-const CSV_COLUMNS = ['topic', 'partition', 'offset', 'key', 'timestamp', 'timestampIso', 'receivedAt', 'receivedAtIso', 'headers', 'value'] as const;
+export const CSV_COLUMNS = ['topic', 'partition', 'offset', 'key', 'timestamp', 'timestampIso', 'receivedAt', 'receivedAtIso', 'headers', 'value', 'tombstone'] as const;
 const CSV_SPECIAL_CHARACTERS = /[",\r\n]/;
 
 export const EXPORT_FORMAT_EXTENSIONS: Record<KafkaExportFormat, string> = { json: 'json', ndjson: 'ndjson', csv: 'csv' };
@@ -33,7 +34,7 @@ export function toExportedRecord(message: KafkaMessage): ExportedRecord {
     offset: message.offset,
     key: message.key,
     headers: message.headers ?? {},
-    value: message.value,
+    value: isTombstone(message) ? null : message.value,
     timestamp: message.recordTimestamp ?? null,
     timestampIso: isoOrNull(message.recordTimestamp),
     receivedAt: message.timestamp,
@@ -45,12 +46,16 @@ export function escapeCsvField(text: string): string {
   return CSV_SPECIAL_CHARACTERS.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+function csvText(record: ExportedRecord, column: (typeof CSV_COLUMNS)[number]): string {
+  if (column === 'tombstone') {
+    return String(record.value === null);
+  }
+  const cell = record[column];
+  return column === 'headers' ? JSON.stringify(cell) : cell === null ? '' : String(cell);
+}
+
 function csvCells(record: ExportedRecord): string[] {
-  return CSV_COLUMNS.map((column) => {
-    const cell = record[column];
-    const text = column === 'headers' ? JSON.stringify(cell) : cell === null ? '' : String(cell);
-    return escapeCsvField(text);
-  });
+  return CSV_COLUMNS.map((column) => escapeCsvField(csvText(record, column)));
 }
 
 export function exportAsJson(messages: KafkaMessage[]): string {
@@ -106,6 +111,7 @@ function headersOf(record: ExportedRecord): Record<string, string> | undefined {
 }
 
 export function importExportedRecord(record: ExportedRecord): KafkaMessage {
+  const tombstone = record.value === null;
   const value = record.value ?? '';
   const headers = headersOf(record);
   const key = record.key ?? null;
@@ -122,6 +128,7 @@ export function importExportedRecord(record: ExportedRecord): KafkaMessage {
     offset,
     key,
     value,
+    tombstone,
     headers,
   };
 }

@@ -27,3 +27,4 @@
 .kafka-compare [data-diff='added'] { background: rgba(0, 160, 0, 0.25); }
 .kafka-compare [data-diff='removed'] { background: rgba(200, 0, 0, 0.25); }
 .kafka-compare [data-diff='blank'] { opacity: 0.4; }
+.kafka-tombstone { font-style: italic; color: var(--muted-foreground); }

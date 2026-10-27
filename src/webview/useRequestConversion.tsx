@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ConversionTarget, convertToGraphql, convertToHttp } from '../core/requestConversion';
+import { ConversionTarget, canUndoConversion, conversionTargetLabel, convertRequest } from '../core/requestConversion';
 import { RequestModel } from '../shared/types';
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
@@ -9,15 +9,19 @@ const NOTICE_DURATION_MS = 12000;
 export interface ConversionNoticeState {
   target: ConversionTarget;
   warnings: string[];
+  previous: RequestModel;
+  converted: RequestModel;
 }
 
 interface RequestConversionControls {
   notice?: ConversionNoticeState;
   convert: (target: ConversionTarget) => void;
+  undo: () => void;
+  canUndo: boolean;
   dismiss: () => void;
 }
 
-const TARGET_LABELS: Record<ConversionTarget, string> = { graphql: 'GraphQL', http: 'HTTP' };
+const UNDONE_TARGET: Record<ConversionTarget, ConversionTarget> = { graphql: 'http', http: 'graphql' };
 
 export function useRequestConversion(
   request: RequestModel | undefined,
@@ -38,24 +42,47 @@ export function useRequestConversion(
     if (!request) {
       return;
     }
-    const outcome = target === 'graphql' ? convertToGraphql(request) : convertToHttp(request);
+    const outcome = convertRequest(request, target);
     applyRequest(outcome.request);
     onConverted(target);
-    setNotice(outcome.warnings.length > 0 ? { target, warnings: outcome.warnings } : undefined);
+    setNotice({ target, warnings: outcome.warnings, previous: request, converted: outcome.request });
   };
 
-  return { notice, convert, dismiss: () => setNotice(undefined) };
+  const canUndo = notice !== undefined && request !== undefined && canUndoConversion(notice.converted, request);
+
+  const undo = () => {
+    if (!notice || !canUndo) {
+      return;
+    }
+    applyRequest(notice.previous);
+    onConverted(UNDONE_TARGET[notice.target]);
+    setNotice(undefined);
+  };
+
+  return { notice, convert, undo, canUndo, dismiss: () => setNotice(undefined) };
 }
 
-export function ConversionNotice({ notice, onDismiss }: { notice: ConversionNoticeState; onDismiss: () => void }) {
+interface ConversionNoticeProps {
+  notice: ConversionNoticeState;
+  canUndo: boolean;
+  onUndo: () => void;
+  onDismiss: () => void;
+}
+
+export function ConversionNotice({ notice, canUndo, onUndo, onDismiss }: ConversionNoticeProps) {
   return (
     <Alert className="curl-import-notice">
       <div className="ui-alert-body">
-        <AlertTitle>Converted to {TARGET_LABELS[notice.target]}</AlertTitle>
+        <AlertTitle>Converted to {conversionTargetLabel(notice.target)}</AlertTitle>
         {notice.warnings.map((warning) => (
           <AlertDescription key={warning}>{warning}</AlertDescription>
         ))}
       </div>
+      {canUndo && (
+        <Button variant="secondary" onClick={onUndo}>
+          Undo
+        </Button>
+      )}
       <Button variant="ghost" aria-label="Dismiss" onClick={onDismiss}>×</Button>
     </Alert>
   );

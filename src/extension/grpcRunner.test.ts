@@ -9,7 +9,7 @@ const PROTO_PATH = path.join(__dirname, '..', 'core', 'testdata', 'greeter.proto
 const TLS = { rejectUnauthorized: true };
 
 function callFor(method: string, target: string): PreparedGrpcCall {
-  return { target, tls: false, protoFiles: [PROTO_PATH], importPaths: [], service: 'demo.Greeter', method, metadata: [], message: '{"name":"Ada"}' };
+  return { target, tls: false, useReflection: false, protoFiles: [PROTO_PATH], importPaths: [], service: 'demo.Greeter', method, metadata: [], message: '{"name":"Ada"}' };
 }
 
 describe('runGrpcCall', () => {

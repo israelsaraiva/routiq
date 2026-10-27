@@ -39,6 +39,12 @@ describe('buildKcatCommand', () => {
     expect(buildKcatCommand(message({ value: '' }), target).command).toContain('-Z');
   });
 
+  it('sends a real empty value only for explicit tombstones and warns for empty strings', () => {
+    expect(buildKcatCommand(message({ value: '', tombstone: false }), target).command).not.toContain('-Z');
+    expect(buildKcatCommand(message({ value: '', tombstone: false }), target).warning).toContain('empty-string');
+    expect(buildKcatCommand(message({ value: '', tombstone: true }), target).warning).toBeUndefined();
+  });
+
   it('adds TLS and SASL options with a password placeholder', () => {
     const { command } = buildKcatCommand(message(), { ...target, ssl: true, saslMechanism: 'scram-sha-256', saslUsername: 'me' });
     expect(command).toContain(`-X 'security.protocol=SASL_SSL'`);

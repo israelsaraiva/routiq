@@ -245,6 +245,7 @@ class KafkaPanel implements vscode.Disposable {
 
   private async configureSchemaRegistry(profile: KafkaProfileDraft | undefined): Promise<void> {
     this.decoder.configure(await this.dependencies.messageSettings.resolveRegistry(profile));
+    this.decoder.configureProtobuf(profile && { file: profile.protobufFile, messageType: profile.protobufMessageType, topicTypes: profile.protobufTopicTypes });
   }
 
   private async variablesFor(collectionId: string | undefined): Promise<Record<string, string>> {
@@ -336,7 +337,7 @@ class KafkaPanel implements vscode.Disposable {
 
   private async importLogFile(): Promise<void> {
     const [file] =
-      (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'JSON logs': ['json', 'ndjson', 'log', 'txt'] }, openLabel: 'Open Splunk JSON export' })) ?? [];
+      (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'Logs and exports': ['json', 'ndjson', 'log', 'txt', 'csv'] }, openLabel: 'Open log or Routiq export' })) ?? [];
     if (!file) {
       return;
     }

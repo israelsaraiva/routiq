@@ -4,6 +4,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 const { themes } = require('./themes');
 const fx = require('./fixtures');
+const kfx = require('./kafkaFixtures');
 
 const distDirectory = path.resolve(__dirname, '..', '..', 'dist');
 const outDirectory = path.join(__dirname, 'out');
@@ -85,6 +86,49 @@ const sseEntries = [
   { sequence: 2, timestamp: Date.now(), event: { event: 'update', data: 'plain text data '.repeat(10), id: '2', retry: 3000 } },
 ];
 
+
+const answerAdmin = async (page, kind, build) => {
+  const handle = await page.waitForFunction((commandKind) => window.__posted.find((message) => message.type === 'adminRequest' && message.command.kind === commandKind && !message.__answered), kind);
+  const request = await handle.jsonValue();
+  await page.evaluate((id) => { window.__posted.find((message) => message.requestId === id).__answered = true; }, request.requestId);
+  await host(page, { ...build, result: { ...build.result, requestId: request.requestId } });
+};
+const kafkaTab = (page, name) => page.getByRole('tab', { name, exact: true }).click();
+const kafkaBase = async (page) => { await host(page, kfx.init); await host(page, kfx.templates); await settle(page); };
+const kafkaScenes = {
+  messages: kafkaBase,
+  send: async (page) => {
+    await kafkaBase(page);
+    await kafkaTab(page, 'Send');
+    await page.getByLabel('Topic', { exact: true }).fill('orders.paid');
+    await settle(page);
+  },
+  topics: async (page) => { await kafkaBase(page); await kafkaTab(page, 'Topics'); await answerAdmin(page, 'listTopics', kfx.topics); await settle(page); },
+  groups: async (page) => {
+    await kafkaBase(page);
+    await kafkaTab(page, 'Consumer groups');
+    await answerAdmin(page, 'listGroups', kfx.groups);
+    await page.getByText('billing-service').first().click();
+    await answerAdmin(page, 'describeGroup', kfx.group);
+    await settle(page);
+  },
+  cluster: async (page) => { await kafkaBase(page); await kafkaTab(page, 'Cluster'); await answerAdmin(page, 'describeCluster', kfx.cluster); await settle(page); },
+};
+const runnerScene = async (page) => {
+  await host(page, { type: 'start', title: 'Demo API run', total: 4, delayMs: 0 });
+  for (const [index, result] of kfx.runnerResults.entries()) await host(page, { type: 'result', index, result });
+  await host(page, { type: 'done', summary: kfx.runnerSummary });
+  await settle(page);
+};
+
+const grpcScene = async (page) => {
+  await baseLoad(page, fx.grpcRequest);
+  await host(page, { type: 'grpcServices', services: [{ name: 'helloworld.Greeter', methods: [{ name: 'SayHello', requestStream: false, responseStream: false, exampleBody: '{}' }, { name: 'Chat', requestStream: true, responseStream: true, exampleBody: '{}' }] }] });
+  await host(page, { type: 'streamStatus', status: 'closed' });
+  await host(page, { type: 'wsMessage', entry: { sequence: 1, timestamp: Date.now(), direction: 'received', text: '{"message":"Hello world"}', sizeBytes: 25, binary: false } });
+  await host(page, { type: 'grpcStatus', status: { code: 0, codeName: 'OK', details: '', trailers: [['x-trailer', 'v']] } });
+};
+
 const scenarios = [
   { name: 'empty-request', themes: ['dark', 'light', 'hc'], run: (page) => baseLoad(page, fx.emptyRequest) },
   { name: 'filled-params', themes: ['dark', 'light', 'hc'], run: (page) => baseLoad(page, fx.filledRequest) },
@@ -125,13 +169,7 @@ const scenarios = [
   { name: 'sse', themes: ['dark', 'light'], run: async (page) => { await baseLoad(page, fx.sseRequest); await host(page, { type: 'streamStatus', status: 'open' }); for (const entry of sseEntries) await host(page, { type: 'sseEvent', entry }); } },
   { name: 'websocket', themes: ['dark', 'hc'], run: async (page) => { await baseLoad(page, fx.wsRequest); await host(page, { type: 'streamStatus', status: 'open' }); for (const entry of wsEntries) await host(page, { type: 'wsMessage', entry }); } },
   { name: 'stream-error', themes: ['dark'], run: async (page) => { await baseLoad(page, fx.wsRequest); await host(page, { type: 'streamStatus', status: 'error', detail: 'ECONNREFUSED' }); } },
-  { name: 'grpc', themes: ['dark', 'light', 'hc'], run: async (page) => {
-    await baseLoad(page, fx.grpcRequest);
-    await host(page, { type: 'grpcServices', services: [{ name: 'helloworld.Greeter', methods: [{ name: 'SayHello', requestStream: false, responseStream: false, exampleBody: '{}' }, { name: 'Chat', requestStream: true, responseStream: true, exampleBody: '{}' }] }] });
-    await host(page, { type: 'streamStatus', status: 'closed' });
-    await host(page, { type: 'wsMessage', entry: { sequence: 1, timestamp: Date.now(), direction: 'received', text: '{"message":"Hello world"}', sizeBytes: 25, binary: false } });
-    await host(page, { type: 'grpcStatus', status: { code: 0, codeName: 'OK', details: '', trailers: [['x-trailer', 'v']] } });
-  } },
+  { name: 'grpc', themes: ['dark', 'light', 'hc'], run: grpcScene },
   { name: 'graphql-query', themes: ['dark', 'light', 'hc'], run: async (page) => { await baseLoad(page, fx.graphqlRequest); await respond(page, fx.response(200, 'OK', JSON.stringify({ errors: [{ message: 'Cannot query field "foo" on type "Country".', path: ['country', 'foo'] }], data: null }))); } },
   { name: 'graphql-schema', width: 1200, height: 1000, themes: ['dark', 'hc'], layout: { orientation: 'horizontal', ratio: 0.6 }, run: async (page) => {
     await baseLoad(page, fx.graphqlRequest);
@@ -160,6 +198,8 @@ const scenarios = [
   { name: 'method-select-open', themes: ['dark', 'light'], run: async (page) => { await baseLoad(page, fx.filledRequest); await page.getByRole('combobox').first().click(); } },
   { name: 'tooltip', themes: ['dark', 'light', 'hc'], run: async (page) => { await baseLoad(page, fx.filledRequest); await page.getByRole('button', { name: 'Toggle split orientation' }).hover(); await page.waitForTimeout(900); } },
   { name: 'autocomplete', themes: ['dark', 'light', 'hc'], run: async (page) => { await baseLoad(page, { ...fx.emptyRequest, url: 'https://{{b' }); const input = page.getByLabel('Request URL'); await input.focus(); await input.press('End'); await input.pressSequentially('a'); await page.getByRole('listbox').waitFor(); } },
+  ...Object.entries(kafkaScenes).map(([name, run]) => ({ name: `kafka-${name}`, view: 'kafka', width: 1200, height: 800, themes: ['dark'], run })),
+  { name: 'runner', view: 'runner', themes: ['dark'], run: runnerScene },
   { name: 'environments-dialog', view: 'environments', themes: ['dark', 'light', 'hc'], run: async (page) => { await host(page, { type: 'environmentsLoad', collectionName: 'Demo API', draft: fx.environmentsDraft }); await settle(page); } },
   { name: 'environments-dialog-narrow', view: 'environments', width: 320, height: 700, themes: ['dark'], run: async (page) => { await host(page, { type: 'environmentsLoad', collectionName: 'Demo API', draft: fx.environmentsDraft }); await settle(page); } },
 ];
@@ -238,7 +278,11 @@ async function main() {
   console.log(`${failures} screenshot(s) with problems`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+module.exports = { startServer, mockVsCodeApi, applyTheme, host, settle, load, respond, clickTab, baseLoad, kafkaScenes, runnerScene, grpcScene, pageUrl: (origin, view) => `${origin}/${view ? `?view=${view}` : ''}` };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

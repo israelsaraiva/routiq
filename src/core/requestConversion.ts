@@ -20,6 +20,25 @@ export function conversionTargetOf(request: RequestModel): ConversionTarget | un
   return kind === 'http' && !isStreamingRequest(request) ? 'graphql' : undefined;
 }
 
+const TARGET_LABELS: Record<ConversionTarget, string> = { graphql: 'GraphQL', http: 'HTTP' };
+
+export function conversionTargetLabel(target: ConversionTarget): string {
+  return TARGET_LABELS[target];
+}
+
+export function convertRequest(request: RequestModel, target: ConversionTarget): ConversionOutcome {
+  return target === 'graphql' ? convertToGraphql(request) : convertToHttp(request);
+}
+
+export function canUndoConversion(converted: RequestModel, current: RequestModel): boolean {
+  return JSON.stringify(converted) === JSON.stringify(current);
+}
+
+export function describeConversion(target: ConversionTarget, warnings: string[]): string {
+  const title = `Converted to ${conversionTargetLabel(target)}.`;
+  return warnings.length === 0 ? title : `${title} ${warnings.join(' ')}`;
+}
+
 export function convertToGraphql(request: RequestModel): ConversionOutcome {
   const { body, warnings } = graphqlBodyFrom(request.body);
   const converted: RequestModel = {

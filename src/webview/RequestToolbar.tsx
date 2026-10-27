@@ -1,4 +1,4 @@
-import { ArrowDataTransferHorizontalIcon, Copy01Icon, MoreHorizontalIcon, Settings02Icon } from '@hugeicons/core-free-icons';
+import { ArrowDataTransferHorizontalIcon, Copy01Icon, MoreHorizontalIcon, Settings02Icon, WifiConnected01Icon } from '@hugeicons/core-free-icons';
 import { ConversionTarget } from '../core/requestConversion';
 import { EnvironmentSummary } from '../shared/types';
 import { Icon } from './Icon';
@@ -14,6 +14,7 @@ interface Props {
   onSelectEnvironment: (environmentId?: string) => void;
   onManageEnvironments: () => void;
   onCopyCurl: () => void;
+  onDiagnoseNetwork?: () => void;
   conversionTarget?: ConversionTarget;
   onConvert?: (target: ConversionTarget) => void;
 }
@@ -22,7 +23,7 @@ const CONVERSION_LABELS: Record<ConversionTarget, string> = { graphql: 'Convert 
 
 const NO_ENVIRONMENT = '__no_environment__';
 
-export function RequestToolbar({ environments, activeEnvironmentId, onSelectEnvironment, onManageEnvironments, onCopyCurl, conversionTarget, onConvert }: Props) {
+export function RequestToolbar({ environments, activeEnvironmentId, onSelectEnvironment, onManageEnvironments, onCopyCurl, onDiagnoseNetwork, conversionTarget, onConvert }: Props) {
   return (
     <div className="request-toolbar">
       <div className="environment-select">
@@ -58,6 +59,12 @@ export function RequestToolbar({ environments, activeEnvironmentId, onSelectEnvi
               <Icon icon={Settings02Icon} />
               Manage environments
             </DropdownMenuItem>
+            {onDiagnoseNetwork && (
+              <DropdownMenuItem onSelect={onDiagnoseNetwork}>
+                <Icon icon={WifiConnected01Icon} />
+                Diagnose network
+              </DropdownMenuItem>
+            )}
             {conversionTarget && onConvert && (
               <DropdownMenuItem onSelect={() => onConvert(conversionTarget)}>
                 <Icon icon={ArrowDataTransferHorizontalIcon} />

@@ -54,6 +54,8 @@ export function TopicsPanel({ admin, onAddToListener, onConsume }: Props) {
             onAddToListener={onAddToListener}
             onConsume={onConsume}
             onDelete={(topic) => send({ kind: 'deleteTopic', topic })}
+            onAlterConfigs={(topic, changes, validateOnly) => send({ kind: 'alterTopicConfigs', topic, changes, validateOnly })}
+            onIncreasePartitions={(topic, totalPartitions) => send({ kind: 'increasePartitions', topic, totalPartitions })}
           />
         )}
       </div>

@@ -90,6 +90,8 @@ export type KafkaAdminCommand =
   | { kind: 'describeTopicConfigs'; topic: string }
   | { kind: 'createTopic'; topic: KafkaTopicCreation }
   | { kind: 'deleteTopic'; topic: string }
+  | { kind: 'alterTopicConfigs'; topic: string; changes: Record<string, string | null>; validateOnly: boolean }
+  | { kind: 'increasePartitions'; topic: string; totalPartitions: number }
   | { kind: 'listGroups' }
   | { kind: 'describeGroup'; groupId: string }
   | { kind: 'deleteGroup'; groupId: string }

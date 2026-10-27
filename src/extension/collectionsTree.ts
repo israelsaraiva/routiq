@@ -66,7 +66,7 @@ function requestIcon(request: RequestModel): vscode.ThemeIcon {
 export class RequestItem extends vscode.TreeItem {
   constructor(readonly collectionId: string, readonly request: RequestModel) {
     super(request.name, vscode.TreeItemCollapsibleState.None);
-    this.contextValue = 'request';
+    this.contextValue = `request.${requestKindOf(request)}`;
     this.id = `request:${request.id}`;
     this.description = describeRequest(request);
     this.iconPath = requestIcon(request);

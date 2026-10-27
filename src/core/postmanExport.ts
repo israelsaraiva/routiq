@@ -1,5 +1,6 @@
-import { Auth, Collection, CollectionEntry, Environment, KeyValue, RequestBody, RequestModel } from '../shared/types';
+import { Collection, CollectionEntry, Environment, KeyValue, RequestBody, RequestModel } from '../shared/types';
 import { isFolder } from './collectionTree';
+import { exportPostmanAuth } from './postmanAuth';
 import { buildQueryString, activePairs } from './url';
 
 export const POSTMAN_SCHEMA_V21 = 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json';
@@ -53,30 +54,9 @@ function toFormDataField(field: NonNullable<RequestBody['multipart']>[number]): 
   return { key: field.key, ...value, ...(field.enabled ? {} : { disabled: true }) };
 }
 
-function authEntries(values: Record<string, string>): PostmanJson[] {
-  return Object.entries(values).map(([key, value]) => ({ key, value, type: 'string' }));
-}
-
-function toPostmanAuth(auth: Auth): PostmanJson | undefined {
-  switch (auth.type) {
-    case 'bearer':
-      return { type: 'bearer', bearer: authEntries({ token: auth.token }) };
-    case 'basic':
-      return { type: 'basic', basic: authEntries({ username: auth.username, password: auth.password }) };
-    case 'digest':
-      return { type: 'digest', digest: authEntries({ username: auth.username, password: auth.password }) };
-    case 'apikey':
-      return { type: 'apikey', apikey: authEntries({ key: auth.key, value: auth.value, in: auth.location }) };
-    case 'oauth2':
-      return { type: 'oauth2', oauth2: authEntries({ accessTokenUrl: auth.tokenUrl, clientId: auth.clientId, clientSecret: auth.clientSecret, scope: auth.scope, grant_type: auth.grant }) };
-    default:
-      return undefined;
-  }
-}
-
 function toPostmanRequestItem(request: RequestModel): PostmanJson {
   const body = toPostmanBody(request.body);
-  const auth = toPostmanAuth(request.auth);
+  const auth = exportPostmanAuth(request.auth);
   return {
     name: request.name,
     request: {

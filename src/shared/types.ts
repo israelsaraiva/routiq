@@ -1,5 +1,5 @@
 import type { KafkaAdminRequestMessage } from './kafkaAdminTypes';
-import type { KafkaDecodedFormat, KafkaMessageFeatureHostMessage, KafkaMessageFeatureWebviewMessage, KafkaUiState } from './kafkaMessageTypes';
+import type { KafkaDecodedFormat, KafkaMessageFeatureHostMessage, KafkaMessageFeatureWebviewMessage, KafkaProtobufProfileFields, KafkaUiState } from './kafkaMessageTypes';
 import type { KafkaEngineDraftFields, KafkaEngineHostMessage, KafkaEngineMessageFields, KafkaEngineProfileFields, KafkaEngineViewFields, KafkaEngineWebviewMessage } from './kafkaEngineTypes';
 import type { KafkaProduceHostMessage, KafkaProduceWebviewMessage } from './kafkaProduceTypes';
 
@@ -66,6 +66,7 @@ export interface GrpcConfig {
   importPaths: string[];
   service: string;
   method: string;
+  useReflection?: boolean;
 }
 
 export const DEFAULT_GRPC_CONFIG: GrpcConfig = { tls: false, protoFiles: [], importPaths: [], service: '', method: '' };
@@ -264,6 +265,7 @@ export type WebviewToHostMessage =
   | { type: 'send'; request: RequestModel }
   | { type: 'save'; request: RequestModel }
   | { type: 'copyCurl'; request: RequestModel }
+  | { type: 'diagnoseNetwork'; request: RequestModel }
   | { type: 'fetchOAuthToken'; request: RequestModel }
   | { type: 'setActiveEnvironment'; environmentId?: string }
   | { type: 'manageEnvironments' }
@@ -377,7 +379,7 @@ export type KafkaConnectionState = 'disconnected' | 'connecting' | 'connected' |
 
 export type KafkaFlowIdSource = 'header' | 'json-content' | 'key' | 'none' | 'splunk';
 
-export interface KafkaProfile extends KafkaEngineProfileFields {
+export interface KafkaProfile extends KafkaEngineProfileFields, KafkaProtobufProfileFields {
   id: string;
   name: string;
   brokers: string;
@@ -420,6 +422,7 @@ export interface KafkaMessage extends KafkaEngineMessageFields {
   eventType?: string;
   flowName?: string;
   valueBase64?: string;
+  tombstone?: boolean;
   valueFormat?: KafkaDecodedFormat;
   schemaId?: number;
   decodeError?: string;

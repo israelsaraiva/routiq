@@ -2,6 +2,7 @@ import { KafkaAcks, KafkaCompression, KafkaReplayPartitionMode } from '../../sha
 import { KafkaMessage, KafkaProfile } from '../../shared/types';
 import { parseBrokerList } from './connection';
 import { readOnlyReason } from './sendJob';
+import { isTombstone } from './tombstone';
 
 export const SPLUNK_PSEUDO_TOPIC = 'splunk-json';
 
@@ -76,7 +77,7 @@ function toReplayRecord(message: KafkaMessage, options: ReplayOptions): ReplayRe
   return {
     topic: options.targetTopic.trim(),
     key: message.key,
-    value: message.value === '' ? null : message.value,
+    value: isTombstone(message) ? null : message.value,
     headers: message.headers ?? {},
     partition: partitionFor(message, options),
     timestamp: options.keepTimestamps ? (message.recordTimestamp ?? message.timestamp) : undefined,

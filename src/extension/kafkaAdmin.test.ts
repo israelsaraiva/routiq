@@ -22,6 +22,9 @@ function createFakeAdmin(overrides: Partial<KafkaAdminLike> = {}): KafkaAdminLik
     fetchTopicOffsets: track('fetchTopicOffsets', async () => [{ partition: 0, low: '0', high: '10' }]),
     fetchOffsetsByTimestamp: track('fetchOffsetsByTimestamp', async () => [{ partition: 0, offset: '4' }]),
     describeTopicConfigs: track('describeTopicConfigs', async () => [{ name: 'retention.ms', value: '1', isDefault: false, readOnly: false, sensitive: false }]),
+    alterTopicConfigs: track('alterTopicConfigs', async () => undefined),
+    createPartitions: track('createPartitions', async () => undefined),
+    describeBrokerConfigs: track('describeBrokerConfigs', async () => [{ name: 'inter.broker.protocol.version', value: '3.7-IV4' }]),
     createTopic: track('createTopic', async () => true),
     deleteTopic: track('deleteTopic', async () => undefined),
     listGroups: track('listGroups', async () => [{ groupId: 'g1', protocolType: 'consumer' }]),
@@ -91,6 +94,51 @@ describe('KafkaAdminService', () => {
     expect(result.data).toMatchObject({
       cluster: { clusterId: 'abc', brokers: [{ nodeId: 1, isController: false }, { nodeId: 2, isController: true }] },
     });
+  });
+
+  it('derives a version hint from the controller broker configs', async () => {
+    const describeBrokerConfigs = vi.fn(async () => [{ name: 'inter.broker.protocol.version', value: '3.7-IV4' }]);
+    const result = await serviceWith(createFakeAdmin({ describeBrokerConfigs })).handle(config, 'r', { kind: 'describeCluster' });
+    expect(describeBrokerConfigs).toHaveBeenCalledWith(2);
+    expect(result.data).toMatchObject({ cluster: { version: 'inter.broker.protocol.version: 3.7-IV4' } });
+  });
+
+  it('keeps the cluster usable when broker configs cannot be read', async () => {
+    const admin = createFakeAdmin({ describeBrokerConfigs: async () => Promise.reject(new Error('denied')) });
+    const result = await serviceWith(admin).handle(config, 'r', { kind: 'describeCluster' });
+    expect(result.error).toBeUndefined();
+    expect(result.data).toMatchObject({ cluster: { clusterId: 'abc' } });
+  });
+
+  it('alters topic configs preserving existing overrides and supports validate only', async () => {
+    const alterTopicConfigs = vi.fn(async () => undefined);
+    const admin = createFakeAdmin({ alterTopicConfigs });
+    const service = serviceWith(admin);
+    const applied = await service.handle(config, 'r', { kind: 'alterTopicConfigs', topic: 'orders', changes: { 'cleanup.policy': 'compact' }, validateOnly: false });
+    expect(applied.data).toMatchObject({ kind: 'done', message: 'Updated 1 config(s) of "orders"' });
+    expect(alterTopicConfigs).toHaveBeenLastCalledWith('orders', [{ name: 'retention.ms', value: '1' }, { name: 'cleanup.policy', value: 'compact' }], false);
+    const validated = await service.handle(config, 'r', { kind: 'alterTopicConfigs', topic: 'orders', changes: { 'retention.ms': '5' }, validateOnly: true });
+    expect(validated.data).toMatchObject({ message: expect.stringContaining('nothing was applied') });
+    expect(alterTopicConfigs).toHaveBeenLastCalledWith('orders', [{ name: 'retention.ms', value: '5' }], true);
+  });
+
+  it('does not alter read-only configs', async () => {
+    const readOnly = { name: 'x', value: '1', isDefault: false, readOnly: true, sensitive: false };
+    const admin = createFakeAdmin({ describeTopicConfigs: async () => [readOnly] });
+    const result = await serviceWith(admin).handle(config, 'r', { kind: 'alterTopicConfigs', topic: 'orders', changes: { x: '2' }, validateOnly: false });
+    expect(result.error).toMatch(/read-only/);
+    expect(admin.calls).not.toContain('alterTopicConfigs');
+  });
+
+  it('increases partitions only upwards', async () => {
+    const createPartitions = vi.fn(async () => undefined);
+    const service = serviceWith(createFakeAdmin({ createPartitions }));
+    const grown = await service.handle(config, 'r', { kind: 'increasePartitions', topic: 'orders', totalPartitions: 4 });
+    expect(grown.data).toEqual({ kind: 'done', message: 'Increased "orders" to 4 partitions' });
+    expect(createPartitions).toHaveBeenCalledWith('orders', 4);
+    const same = await service.handle(config, 'r', { kind: 'increasePartitions', topic: 'orders', totalPartitions: 1 });
+    expect(same.error).toMatch(/greater than 1/);
+    expect(createPartitions).toHaveBeenCalledTimes(1);
   });
 
   it('turns authorization failures into friendly errors', async () => {

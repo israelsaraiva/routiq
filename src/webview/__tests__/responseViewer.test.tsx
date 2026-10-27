@@ -41,3 +41,21 @@ describe('ResponseViewer body format', () => {
     expect(renderedBody()).toBe('<a>\n  <b>1</b>\n</a>');
   });
 });
+
+describe('ResponseViewer network error action', () => {
+  const failed = (error: string): ResponseModel => ({ status: 0, statusText: '', timeMs: 1, sizeBytes: 0, headers: [], body: '', error });
+
+  it('offers Diagnose network for timeout and connection errors', () => {
+    const onDiagnoseNetwork = vi.fn();
+    render(
+      <ResponseViewer response={failed('Connect timeout after 10000 ms (direct connection). Check the settings.')} sending={false} onDiagnoseNetwork={onDiagnoseNetwork} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Diagnose network' }));
+    expect(onDiagnoseNetwork).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer it for unrelated errors', () => {
+    render(<ResponseViewer response={failed('Request aborted')} sending={false} onDiagnoseNetwork={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Diagnose network' })).toBeNull();
+  });
+});

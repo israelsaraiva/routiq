@@ -1,9 +1,8 @@
 import { Delete02Icon, Upload01Icon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';
 import { groupByFlow } from '../../core/kafka/flowGroups';
-import { parseJsonFile } from '../../core/kafka/jsonLogParser';
+import { importLogFile } from '../../core/kafka/logImport';
 import { LogFilterType, filterBySearchQuery, filterByType, sortByTimestamp, uniqueContainers, uniqueLevels } from '../../core/kafka/logFilters';
-import { messagesFromLogEntries } from '../../core/kafka/messageExport';
 import { KafkaLogFile } from '../../shared/types';
 import { Icon } from '../Icon';
 import { LabeledSwitch } from '../components/LabeledSwitch';
@@ -33,8 +32,8 @@ export function LogFilePanel({ logFile }: Props) {
   const [oldestFirst, setOldestFirst] = useState(false);
   const selection = useMessageSelection();
 
-  const parsed = useMemo(() => (logFile ? parseJsonFile(logFile.text) : undefined), [logFile]);
-  const messages = useMemo(() => (parsed ? messagesFromLogEntries(parsed.entries) : []), [parsed]);
+  const imported = useMemo(() => (logFile ? importLogFile(logFile) : undefined), [logFile]);
+  const messages = useMemo(() => imported?.messages ?? [], [imported]);
   const visible = useMemo(
     () => sortByTimestamp(filterBySearchQuery(filterByType(messages, filterType, filterValue), query), oldestFirst),
     [messages, filterType, filterValue, query, oldestFirst],
@@ -53,7 +52,7 @@ export function LogFilePanel({ logFile }: Props) {
     <div className="kafka-messages">
       <div className="kafka-toolbar">
         <Button variant="secondary" size="sm" onClick={() => postKafkaMessage({ type: 'kafkaImportLogFile' })}>
-          <Icon icon={Upload01Icon} /> {logFile ? 'Replace file' : 'Import Splunk JSON'}
+          <Icon icon={Upload01Icon} /> {logFile ? 'Replace file' : 'Import log / CSV'}
         </Button>
         {logFile && (
           <Button variant="ghost" size="sm" onClick={() => postKafkaMessage({ type: 'kafkaClearLogFile' })}>
@@ -61,8 +60,8 @@ export function LogFilePanel({ logFile }: Props) {
           </Button>
         )}
       </div>
-      {!logFile && <p className="kafka-empty">Import a Splunk JSON export (single JSON, array or NDJSON) to browse it as message flows.</p>}
-      {parsed?.error && <p className="kafka-error">{parsed.error}</p>}
+      {!logFile && <p className="kafka-empty">Import a Splunk JSON export (single JSON, array or NDJSON) or a Routiq CSV/JSON/NDJSON export to browse it as message flows.</p>}
+      {imported?.error && <p className="kafka-error">{imported.error}</p>}
       {logFile && (
         <>
           <div className="kafka-toolbar">

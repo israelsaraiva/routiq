@@ -1,10 +1,11 @@
-import { Collection, CollectionEntry, EXPORT_FORMAT_VERSION, KeyValue, RequestModel, RequestScripts } from '../shared/types';
+import { Auth, Collection, CollectionEntry, EXPORT_FORMAT_VERSION, KeyValue, RequestModel, RequestScripts } from '../shared/types';
 import { parseOwnCollection } from './collectionFormat';
 import { createCollection, createFolder, createRequest } from './factories';
 import { IdGenerator, generateId } from './ids';
 import { Json, isObject, toKeyValues, toMethod } from './jsonValues';
 import { ImportWarnings } from './importReport';
-import { describeUnsupportedPostmanAuth, toPostmanAuth, toPostmanBody } from './postmanRequestParts';
+import { importPostmanAuth, inheritsPostmanAuth } from './postmanAuth';
+import { toPostmanBody } from './postmanRequestParts';
 import { translatePostmanEvents } from './postmanEvents';
 import { combineInheritedScripts } from './scriptInheritance';
 import { orderCollection } from './serialization';
@@ -17,27 +18,35 @@ function toUrl(url: unknown): string {
   return isObject(url) && typeof url.raw === 'string' ? url.raw : '';
 }
 
-function warnAboutUnsupportedAuth(request: Json, name: string, warnings: ImportWarnings): void {
-  const unsupported = describeUnsupportedPostmanAuth(request.auth);
-  if (unsupported) {
-    warnings.push(`"${name}": auth type "${unsupported}" is not supported and was skipped.`);
-  }
-}
-
 type InheritedScripts = Array<RequestScripts | undefined>;
 
-function importPostmanRequest(item: Json, newId: IdGenerator, warnings: ImportWarnings, inherited: InheritedScripts): RequestModel {
+interface Inheritance {
+  scripts: InheritedScripts;
+  auth: Auth;
+}
+
+const NO_AUTH: Auth = { type: 'none' };
+
+function resolveAuth(source: unknown, label: string, inheritedAuth: Auth, warnings: ImportWarnings): Auth {
+  if (inheritsPostmanAuth(source)) {
+    return inheritedAuth;
+  }
+  const imported = importPostmanAuth(source, label);
+  warnings.push(...imported.warnings);
+  return imported.auth;
+}
+
+function importPostmanRequest(item: Json, newId: IdGenerator, warnings: ImportWarnings, inherited: Inheritance): RequestModel {
   const request = isObject(item.request) ? item.request : {};
   const name = String(item.name ?? 'Untitled');
-  warnAboutUnsupportedAuth(request, name, warnings);
-  const scripts = combineInheritedScripts(inherited, translatePostmanEvents(item.event, name, warnings));
+  const scripts = combineInheritedScripts(inherited.scripts, translatePostmanEvents(item.event, name, warnings));
   return withGraphqlKindWhenApplicable({
     ...createRequest(name, newId),
     method: toMethod(request.method),
     url: toUrl(request.url),
     headers: toKeyValues(request.header),
     body: toPostmanBody(request.body),
-    auth: toPostmanAuth(request.auth),
+    auth: resolveAuth(request.auth, name, inherited.auth, warnings),
     ...(scripts ? { scripts } : {}),
   });
 }
@@ -46,7 +55,7 @@ function isRequestItem(item: Json): boolean {
   return isObject(item.request) || typeof item.request === 'string';
 }
 
-function importPostmanItems(items: unknown, newId: IdGenerator, warnings: ImportWarnings, inherited: InheritedScripts): CollectionEntry[] {
+function importPostmanItems(items: unknown, newId: IdGenerator, warnings: ImportWarnings, inherited: Inheritance): CollectionEntry[] {
   if (!Array.isArray(items)) {
     return [];
   }
@@ -54,7 +63,11 @@ function importPostmanItems(items: unknown, newId: IdGenerator, warnings: Import
     if (Array.isArray(item.item)) {
       const folderName = String(item.name ?? 'Folder');
       const folderScripts = translatePostmanEvents(item.event, `folder ${folderName}`, warnings);
-      return [{ ...createFolder(folderName, newId), items: importPostmanItems(item.item, newId, warnings, [...inherited, folderScripts]) }];
+      const folderInheritance = {
+        scripts: [...inherited.scripts, folderScripts],
+        auth: resolveAuth(item.auth, `folder ${folderName}`, inherited.auth, warnings),
+      };
+      return [{ ...createFolder(folderName, newId), items: importPostmanItems(item.item, newId, warnings, folderInheritance) }];
     }
     return isRequestItem(item) ? [importPostmanRequest(item, newId, warnings, inherited)] : [];
   });
@@ -76,7 +89,8 @@ function toCollectionVariables(variables: unknown): KeyValue[] {
 export function importPostmanCollection(data: Json, newId: IdGenerator = generateId, warnings: ImportWarnings = []): Collection {
   const collection = createCollection(String(data.info?.name ?? 'Imported Collection'), newId);
   const collectionScripts = translatePostmanEvents(data.event, `collection ${collection.name}`, warnings);
-  collection.items = importPostmanItems(data.item, newId, warnings, [collectionScripts]);
+  const collectionAuth = resolveAuth(data.auth, `collection ${collection.name}`, NO_AUTH, warnings);
+  collection.items = importPostmanItems(data.item, newId, warnings, { scripts: [collectionScripts], auth: collectionAuth });
   collection.variables = toCollectionVariables(data.variable);
   return collection;
 }

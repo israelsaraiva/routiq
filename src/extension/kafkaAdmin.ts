@@ -15,6 +15,7 @@ import {
   topicsOfGroup,
 } from '../core/kafka/admin';
 import { KafkaConnectionConfig } from '../core/kafka/connection';
+import { ConfigUpdateEntry, formatBrokerVersion, planConfigUpdate, validatePartitionIncrease } from '../core/kafka/topicConfigEdit';
 import {
   KafkaAdminCommand,
   KafkaAdminData,
@@ -37,6 +38,9 @@ export interface KafkaAdminLike {
   describeTopicConfigs(topic: string): Promise<KafkaTopicConfigEntry[]>;
   createTopic(creation: KafkaTopicCreation): Promise<boolean>;
   deleteTopic(topic: string): Promise<void>;
+  alterTopicConfigs(topic: string, entries: ConfigUpdateEntry[], validateOnly: boolean): Promise<void>;
+  createPartitions(topic: string, totalPartitions: number): Promise<void>;
+  describeBrokerConfigs(brokerId: number): Promise<ConfigUpdateEntry[]>;
   listGroups(): Promise<Array<{ groupId: string; protocolType: string }>>;
   describeGroups(groupIds: string[]): Promise<RawGroupDescription[]>;
   deleteGroup(groupId: string): Promise<void>;
@@ -91,6 +95,13 @@ export const createKafkaAdmin: KafkaAdminFactory = (config, clientId, timeoutMs)
         topics: [{ topic: name, numPartitions: partitions, replicationFactor, configEntries: Object.entries(configs).map(([key, value]) => ({ name: key, value })) }],
       }),
     deleteTopic: (topic) => admin.deleteTopics({ topics: [topic] }),
+    alterTopicConfigs: async (topic, entries, validateOnly) =>
+      void (await admin.alterConfigs({ validateOnly, resources: [{ type: ConfigResourceTypes.TOPIC, name: topic, configEntries: entries }] })),
+    createPartitions: async (topic, totalPartitions) => void (await admin.createPartitions({ topicPartitions: [{ topic, count: totalPartitions }] })),
+    describeBrokerConfigs: async (brokerId) => {
+      const { resources } = await admin.describeConfigs({ includeSynonyms: false, resources: [{ type: ConfigResourceTypes.BROKER, name: String(brokerId) }] });
+      return (resources[0]?.configEntries ?? []).map((entry) => ({ name: entry.configName, value: entry.configValue }));
+    },
     listGroups: async () => (await admin.listGroups()).groups,
     describeGroups: async (groupIds) =>
       (await admin.describeGroups(groupIds)).groups.map(({ groupId, state, protocol, protocolType, members }) => ({
@@ -176,6 +187,10 @@ export class KafkaAdminService {
       case 'deleteTopic':
         await admin.deleteTopic(command.topic);
         return { kind: 'done', message: `Deleted topic "${command.topic}"` };
+      case 'alterTopicConfigs':
+        return this.alterTopicConfigs(admin, command.topic, command.changes, command.validateOnly);
+      case 'increasePartitions':
+        return this.increasePartitions(admin, command.topic, command.totalPartitions);
       case 'listGroups':
         return { kind: 'groups', groups: await this.listGroups(admin) };
       case 'describeGroup':
@@ -203,6 +218,34 @@ export class KafkaAdminService {
   private async createTopic(admin: KafkaAdminLike, creation: KafkaTopicCreation): Promise<KafkaAdminData> {
     const created = await admin.createTopic(creation);
     return { kind: 'done', message: created ? `Created topic "${creation.name}"` : `Topic "${creation.name}" already exists` };
+  }
+
+  private async alterTopicConfigs(admin: KafkaAdminLike, topic: string, changes: Record<string, string | null>, validateOnly: boolean): Promise<KafkaAdminData> {
+    const plan = planConfigUpdate(await admin.describeTopicConfigs(topic), changes);
+    if (plan.error) {
+      throw new Error(plan.error);
+    }
+    await admin.alterTopicConfigs(topic, plan.entries, validateOnly);
+    const count = Object.keys(changes).length;
+    return { kind: 'done', message: validateOnly ? `Validated ${count} config change(s) for "${topic}" (nothing was applied)` : `Updated ${count} config(s) of "${topic}"` };
+  }
+
+  private async increasePartitions(admin: KafkaAdminLike, topic: string, totalPartitions: number): Promise<KafkaAdminData> {
+    const [metadata] = await admin.describeTopics([topic]);
+    const invalid = validatePartitionIncrease(metadata?.partitions.length ?? 0, totalPartitions);
+    if (invalid) {
+      throw new Error(invalid);
+    }
+    await admin.createPartitions(topic, totalPartitions);
+    return { kind: 'done', message: `Increased "${topic}" to ${totalPartitions} partitions` };
+  }
+
+  private async brokerVersion(admin: KafkaAdminLike, brokerId: number): Promise<string | undefined> {
+    try {
+      return formatBrokerVersion(await admin.describeBrokerConfigs(brokerId));
+    } catch {
+      return undefined;
+    }
   }
 
   private async listGroups(admin: KafkaAdminLike) {
@@ -273,9 +316,12 @@ export class KafkaAdminService {
 
   private async describeCluster(admin: KafkaAdminLike): Promise<KafkaClusterInfo> {
     const { clusterId, controllerId, brokers } = await admin.describeCluster();
+    const probedBroker = controllerId >= 0 ? controllerId : brokers[0]?.nodeId;
+    const version = probedBroker === undefined ? undefined : await this.brokerVersion(admin, probedBroker);
     return {
       clusterId,
       controllerId,
+      ...(version && { version }),
       brokers: brokers.map((broker) => ({ ...broker, isController: broker.nodeId === controllerId })).sort((left, right) => left.nodeId - right.nodeId),
     };
   }

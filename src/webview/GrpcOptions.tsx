@@ -1,6 +1,6 @@
 import { Add01Icon, Delete02Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 import { useCallback, useEffect } from 'react';
-import { addUniquePath, describeCallShape, methodKey, parseMethodKey, removePathAt, selectedMethod, shouldReplaceMessage } from '../core/grpcConfig';
+import { addUniquePath, describeCallShape, methodKey, parseMethodKey, removePathAt, selectedMethod, shouldReplaceMessage, usesReflection } from '../core/grpcConfig';
 import { DEFAULT_GRPC_CONFIG, GrpcConfig, GrpcServiceDescription, HostToWebviewMessage, RequestModel } from '../shared/types';
 import { Icon } from './Icon';
 import { IconButton } from './components/IconButton';
@@ -9,6 +9,8 @@ import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from './components/ui/select';
 import { postToHost } from './vscodeApi';
+
+const REFLECTION_RELOAD_DELAY_MS = 600;
 
 interface Props {
   request: RequestModel;
@@ -61,12 +63,17 @@ export function GrpcOptions({ request, services, loadError, onChange }: Props) {
     return () => window.removeEventListener('message', onMessage);
   }, [config, updateConfig]);
 
+  const reflection = usesReflection(config);
   const protoKey = config.protoFiles.join('\n') + '\n' + config.importPaths.join('\n');
   useEffect(() => {
+    if (reflection) {
+      const timer = setTimeout(() => request.url.trim() !== '' && loadProto(), REFLECTION_RELOAD_DELAY_MS);
+      return () => clearTimeout(timer);
+    }
     if (config.protoFiles.length > 0) {
       loadProto();
     }
-  }, [protoKey]);
+  }, [protoKey, reflection, request.url, config.tls]);
 
   const selectMethod = (key: string) => {
     const selection = parseMethodKey(key);
@@ -83,13 +90,14 @@ export function GrpcOptions({ request, services, loadError, onChange }: Props) {
     <div className="grpc-options">
       <div className="response-toolbar">
         <LabeledSwitch label="TLS" checked={config.tls} onCheckedChange={(tls) => updateConfig({ tls })} />
+        <LabeledSwitch label="Use server reflection" checked={reflection} onCheckedChange={(useReflection) => updateConfig({ useReflection })} />
         <Select value={methodKey(config.service, config.method)} onValueChange={selectMethod}>
           <SelectTrigger aria-label="gRPC method">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={methodKey('', '')} disabled>
-              {services.length === 0 ? 'Load a .proto file' : 'Select method'}
+              {services.length === 0 ? (reflection ? 'Enter a URL to list services' : 'Load a .proto file') : 'Select method'}
             </SelectItem>
             {services.map((service) => (
               <SelectGroup key={service.name}>
@@ -104,23 +112,27 @@ export function GrpcOptions({ request, services, loadError, onChange }: Props) {
           </SelectContent>
         </Select>
         {method && <span className="stream-detail">{describeCallShape(method)}</span>}
-        <Button variant="secondary" onClick={loadProto} disabled={config.protoFiles.length === 0}>
+        <Button variant="secondary" onClick={loadProto} disabled={!reflection && config.protoFiles.length === 0}>
           <Icon icon={RefreshIcon} />
-          Reload proto
+          {reflection ? 'Refresh services' : 'Reload proto'}
         </Button>
       </div>
-      <PathList
-        label="Proto files"
-        paths={config.protoFiles}
-        onAdd={() => postToHost({ type: 'grpcPickPath', pathKind: 'protoFile' })}
-        onRemove={(index) => updateConfig({ protoFiles: removePathAt(config.protoFiles, index) })}
-      />
-      <PathList
-        label="Import paths"
-        paths={config.importPaths}
-        onAdd={() => postToHost({ type: 'grpcPickPath', pathKind: 'importPath' })}
-        onRemove={(index) => updateConfig({ importPaths: removePathAt(config.importPaths, index) })}
-      />
+            {!reflection && (
+        <>
+          <PathList
+            label="Proto files"
+            paths={config.protoFiles}
+            onAdd={() => postToHost({ type: 'grpcPickPath', pathKind: 'protoFile' })}
+            onRemove={(index) => updateConfig({ protoFiles: removePathAt(config.protoFiles, index) })}
+          />
+          <PathList
+            label="Import paths"
+            paths={config.importPaths}
+            onAdd={() => postToHost({ type: 'grpcPickPath', pathKind: 'importPath' })}
+            onRemove={(index) => updateConfig({ importPaths: removePathAt(config.importPaths, index) })}
+          />
+        </>
+      )}
       {loadError && <span className="filter-error">{loadError}</span>}
     </div>
   );

@@ -220,6 +220,7 @@ export function App() {
         onSelectEnvironment={(environmentId) => postToHost({ type: 'setActiveEnvironment', environmentId })}
         onManageEnvironments={() => postToHost({ type: 'manageEnvironments' })}
         onCopyCurl={() => postToHost({ type: 'copyCurl', request })}
+        onDiagnoseNetwork={() => postToHost({ type: 'diagnoseNetwork', request })}
         conversionTarget={conversionTargetOf(request)}
         onConvert={conversion.convert}
       />
@@ -260,7 +261,7 @@ export function App() {
           Save
         </Button>
       </div>
-      {conversion.notice && <ConversionNotice notice={conversion.notice} onDismiss={conversion.dismiss} />}
+      {conversion.notice && <ConversionNotice notice={conversion.notice} canUndo={conversion.canUndo} onUndo={conversion.undo} onDismiss={conversion.dismiss} />}
       {curlPaste.notice && <CurlImportNotice notice={curlPaste.notice} onUndo={curlPaste.undo} onDismiss={curlPaste.dismiss} />}
       {kind === 'grpc' ? (
         <GrpcOptions request={request} services={grpcServices.services} loadError={grpcServices.loadError} onChange={change} />
@@ -317,7 +318,7 @@ export function App() {
               <>
                 <h3 className="section-title">Response</h3>
                 {kind === 'graphql' && response && <GraphqlErrors errors={extractGraphqlErrors(response.body)} />}
-                <ResponseViewer response={response} sending={sending} />
+                <ResponseViewer response={response} sending={sending} onDiagnoseNetwork={() => postToHost({ type: 'diagnoseNetwork', request })} />
               </>
             )}
           </>

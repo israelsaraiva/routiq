@@ -1,0 +1,9 @@
+syntax = "proto3";
+package logistics;
+import "address.proto";
+
+message Shipment {
+  string id = 1;
+  Address destination = 2;
+  repeated int32 weights = 3;
+}

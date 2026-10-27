@@ -23,6 +23,7 @@ import { KafkaProfileItem, KafkaTreeProvider } from './kafkaTree';
 import { HistoryStore } from './historyStore';
 import { GraphqlSchemaStore } from './graphqlSchemaStore';
 import { pickRequestKind } from './requestKindPicker';
+import { convertStoredRequest } from './requestConversionCommands';
 import { RequestPanels } from './requestPanels';
 import { TreeFilter, pickRequestId } from './requestSearch';
 import { TreeAutoReveal } from './treeAutoReveal';
@@ -200,6 +201,10 @@ function registerImportExportCommands(register: Registrar, { storage, panels, va
       return copyStoredRequestAsCurl(storage, vault, node.request.id);
     }
   });
+
+  register('routiq.convertToGraphql', (node) => node instanceof RequestItem && convertStoredRequest(storage, node.request.id, 'graphql'));
+
+  register('routiq.convertToHttp', (node) => node instanceof RequestItem && convertStoredRequest(storage, node.request.id, 'http'));
 }
 
 function registerEnvironmentCommands(register: Registrar, { storage, environmentPanels, statusBar }: Services): void {
@@ -323,6 +328,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
       panels.open(requestId);
     }
   });
+  register('routiq.diagnoseNetwork', () => panels.diagnoseActiveRequest());
   register('routiq.openHelp', () => infoPanels.open('help'));
   register('routiq.openAbout', () => infoPanels.open('about'));
   register('routiq.filterTree', () => treeFilter.prompt());

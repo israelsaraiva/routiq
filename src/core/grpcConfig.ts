@@ -1,6 +1,10 @@
 import { GrpcConfig, GrpcMethodDescription, GrpcServiceDescription } from '../shared/types';
 import { findMethod } from './grpcDescribe';
 
+export function usesReflection(config: Pick<GrpcConfig, 'protoFiles' | 'useReflection'>): boolean {
+  return config.useReflection ?? config.protoFiles.length === 0;
+}
+
 export function addUniquePath(paths: string[], path: string): string[] {
   return paths.includes(path) ? paths : [...paths, path];
 }

@@ -20,6 +20,7 @@ function parseGrpc(source: Json): Partial<RequestModel> {
       importPaths: toStringList(grpc.importPaths),
       service: typeof grpc.service === 'string' ? grpc.service : '',
       method: typeof grpc.method === 'string' ? grpc.method : '',
+      ...(typeof grpc.useReflection === 'boolean' ? { useReflection: grpc.useReflection } : {}),
     },
   };
 }

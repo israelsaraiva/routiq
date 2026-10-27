@@ -1,4 +1,10 @@
-export type KafkaValueFormat = 'auto' | 'json' | 'text' | 'hex' | 'base64' | 'avro';
+export type KafkaValueFormat = 'auto' | 'json' | 'text' | 'hex' | 'base64' | 'avro' | 'protobuf';
+
+export interface KafkaProtobufProfileFields {
+  protobufFile?: string;
+  protobufMessageType?: string;
+  protobufTopicTypes?: string;
+}
 
 export type KafkaDecodedFormat = 'json' | 'text' | 'avro' | 'json-schema' | 'protobuf' | 'binary';
 
@@ -72,6 +78,6 @@ export type KafkaMessageFeatureHostMessage =
 
 export type KafkaMessageFeatureWebviewMessage =
   | { type: 'kafkaSaveUiState'; ui: Partial<KafkaUiState> }
-  | { type: 'kafkaDecode'; messageId: string; base64: string; format: KafkaValueFormat }
+  | { type: 'kafkaDecode'; messageId: string; topic: string; base64: string; format: KafkaValueFormat }
   | { type: 'kafkaRuleHit'; ruleName: string; count: number; sample: string }
   | { type: 'kafkaSaveAsRequest'; items: KafkaSaveAsRequestItem[] };

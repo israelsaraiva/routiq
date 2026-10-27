@@ -1,8 +1,8 @@
 {
   "name": "routiq",
   "displayName": "Routiq",
-  "description": "A lightweight Insomnia/Postman-like REST, GraphQL, gRPC and Kafka client inside VS Code.",
-  "version": "0.3.0",
+  "description": "Insomnia/Postman-style API client inside VS Code: REST, GraphQL, WebSocket, SSE, gRPC and Kafka, with collections, environments and scripts.",
+  "version": "0.4.0",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",
@@ -20,18 +20,23 @@
   "homepage": "https://github.com/israelsaraiva/routiq#readme",
   "keywords": [
     "rest",
-    "http",
-    "api",
-    "client",
     "graphql",
-    "websocket",
     "grpc",
+    "websocket",
     "sse",
+    "kafka",
+    "api client",
     "postman",
     "insomnia",
+    "http",
     "curl",
     "openapi",
-    "kafka"
+    "api",
+    "rest client",
+    "http client",
+    "kafka consumer",
+    "protobuf",
+    "environments"
   ],
   "galleryBanner": {
     "color": "#1f2937",
@@ -119,6 +124,12 @@
           "default": 30000,
           "minimum": 1,
           "description": "Request timeout in milliseconds."
+        },
+        "routiq.connectTimeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1,
+          "description": "Connection timeout in milliseconds, separate from routiq.timeoutMs. A connect timeout means the host cannot be reached; a response timeout means it was reached but did not answer."
         },
         "routiq.followRedirects": {
           "type": "boolean",
@@ -213,6 +224,11 @@
       }
     },
     "commands": [
+      {
+        "command": "routiq.diagnoseNetwork",
+        "title": "Diagnose Network for this Request",
+        "category": "Routiq"
+      },
       {
         "command": "routiq.moveTo",
         "title": "Move to…",
@@ -350,6 +366,16 @@
         "title": "Copy as cURL",
         "category": "Routiq",
         "icon": "$(copy)"
+      },
+      {
+        "command": "routiq.convertToGraphql",
+        "title": "Convert to GraphQL",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.convertToHttp",
+        "title": "Convert to HTTP",
+        "category": "Routiq"
       },
       {
         "command": "routiq.runCollection",
@@ -535,7 +561,7 @@
       "view/item/context": [
         {
           "command": "routiq.moveTo",
-          "when": "viewItem =~ /^(collection|folder|request)$/",
+          "when": "viewItem =~ /^(collection|folder|request\\..*)$/",
           "group": "3_manage@4"
         },
         {
@@ -560,7 +586,7 @@
         },
         {
           "command": "routiq.openRequest",
-          "when": "viewItem == request",
+          "when": "viewItem =~ /^request\\./",
           "group": "1_edit@0"
         },
         {
@@ -625,22 +651,32 @@
         },
         {
           "command": "routiq.copyAsCurl",
-          "when": "viewItem == request",
+          "when": "viewItem =~ /^request\\./",
           "group": "2_io@1"
         },
         {
+          "command": "routiq.convertToGraphql",
+          "when": "viewItem == request.http",
+          "group": "2_io@3"
+        },
+        {
+          "command": "routiq.convertToHttp",
+          "when": "viewItem == request.graphql",
+          "group": "2_io@3"
+        },
+        {
           "command": "routiq.rename",
-          "when": "viewItem =~ /^(collection|folder|request)$/",
+          "when": "viewItem =~ /^(collection|folder|request\\..*)$/",
           "group": "3_manage@1"
         },
         {
           "command": "routiq.duplicate",
-          "when": "viewItem =~ /^(collection|folder|request)$/",
+          "when": "viewItem =~ /^(collection|folder|request\\..*)$/",
           "group": "3_manage@2"
         },
         {
           "command": "routiq.delete",
-          "when": "viewItem =~ /^(collection|folder|request)$/",
+          "when": "viewItem =~ /^(collection|folder|request\\..*)$/",
           "group": "3_manage@3"
         },
         {
@@ -719,6 +755,14 @@
           "when": "false"
         },
         {
+          "command": "routiq.convertToGraphql",
+          "when": "false"
+        },
+        {
+          "command": "routiq.convertToHttp",
+          "when": "false"
+        },
+        {
           "command": "routiq.openKafkaConnection",
           "when": "false"
         },
@@ -750,6 +794,7 @@
     "test:integration": "node esbuild.js && node scripts/buildIntegrationTests.js && node dist-test/runTest.js"
   },
   "devDependencies": {
+    "@grpc/reflection": "^1.0.4",
     "@testing-library/react": "^16.3.3",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
@@ -796,6 +841,7 @@
     "https-proxy-agent": "^9.1.0",
     "kafkajs": "^2.2.4",
     "lz4js": "^0.2.0",
+    "protobufjs": "^7.6.6",
     "snappyjs": "^0.7.0",
     "undici": "^6.29.1",
     "ws": "^8.22.0",

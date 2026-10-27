@@ -29,7 +29,7 @@ const orders: KafkaTopicInfo = {
 };
 
 function renderTable(overrides: Partial<Parameters<typeof TopicTable>[0]> = {}) {
-  const handlers = { onLoadConfigs: vi.fn(), onAddToListener: vi.fn(), onConsume: vi.fn(), onDelete: vi.fn() };
+  const handlers = { onLoadConfigs: vi.fn(), onAddToListener: vi.fn(), onConsume: vi.fn(), onDelete: vi.fn(), onAlterConfigs: vi.fn(), onIncreasePartitions: vi.fn() };
   render(<TopicTable topics={[orders]} configs={{}} {...handlers} {...overrides} />);
   return handlers;
 }

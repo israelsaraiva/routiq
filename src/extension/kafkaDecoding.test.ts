@@ -2,6 +2,8 @@ import * as avro from 'avsc';
 import { createServer, IncomingMessage, Server } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { encodeMessageIndex } from '../core/kafka/protobuf/messageIndex';
+import { buildRegistryRoot } from '../core/kafka/protobuf/protobufDecoder';
 import { KafkaMessage } from '../shared/types';
 import { toBase64 } from '../core/kafka/wireFormat';
 import { KafkaValueDecoder } from './kafkaDecoding';
@@ -14,6 +16,24 @@ function wireFormat(schemaId: number, payload: Uint8Array): Uint8Array {
   return Buffer.concat([header, payload]);
 }
 
+const MONEY_PROTO = 'syntax = "proto3"; package common; message Money { string currency = 1; int32 amount = 2; }';
+const ORDER_PROTO = `syntax = "proto3";
+package shop;
+import "common/money.proto";
+import "google/protobuf/timestamp.proto";
+message Customer { string name = 1; }
+message Order { string id = 1; common.Money total = 2; google.protobuf.Timestamp created = 3; repeated string tags = 4; int64 big = 5; }`;
+const ORDER_VALUE = { id: 'o-9', total: { currency: 'EUR', amount: 12 }, created: { seconds: 1700000000 }, tags: ['a', 'b'], big: '9007199254740993' };
+
+function encodeOrder(typeName: string, value: object): Uint8Array {
+  const type = buildRegistryRoot({ main: ORDER_PROTO, references: { 'common/money.proto': MONEY_PROTO } }).lookupType(typeName);
+  return type.encode(type.fromObject(value)).finish();
+}
+
+function protobufEnvelope(schemaId: number, path: number[], payload: Uint8Array): Uint8Array {
+  return wireFormat(schemaId, Buffer.concat([encodeMessageIndex(path), payload]));
+}
+
 function binaryMessage(bytes: Uint8Array): KafkaMessage {
   return { id: 'm', flowId: 'unknown', timestamp: 1, topic: 't', partition: 0, offset: '0', key: null, value: 'garbled', valueBase64: toBase64(bytes) };
 }
@@ -22,18 +42,20 @@ describe('KafkaValueDecoder with a stub Schema Registry', () => {
   let server: Server;
   let url: string;
   let requests: IncomingMessage[];
-  let responses: Record<string, { schema: string; schemaType?: string } | undefined>;
+  let responses: Record<string, { schema: string; schemaType?: string; references?: unknown[] } | undefined>;
 
   beforeEach(async () => {
     requests = [];
     responses = {
-      '1': { schema: JSON.stringify(AVRO_SCHEMA) },
-      '2': { schema: '{"type":"object"}', schemaType: 'JSON' },
-      '3': { schema: 'syntax = "proto3";', schemaType: 'PROTOBUF' },
+      '/schemas/ids/1': { schema: JSON.stringify(AVRO_SCHEMA) },
+      '/schemas/ids/2': { schema: '{"type":"object"}', schemaType: 'JSON' },
+      '/schemas/ids/3': { schema: ORDER_PROTO, schemaType: 'PROTOBUF', references: [{ name: 'common/money.proto', subject: 'money', version: 1 }] },
+      '/schemas/ids/4': { schema: 'syntax = "proto3"; message Broken {', schemaType: 'PROTOBUF' },
+      '/subjects/money/versions/1': { schema: MONEY_PROTO, schemaType: 'PROTOBUF' },
     };
     server = createServer((request, response) => {
       requests.push(request);
-      const entry = responses[request.url?.split('/').pop() ?? ''];
+      const entry = responses[request.url ?? ''];
       response.statusCode = entry ? 200 : 404;
       response.end(JSON.stringify(entry ?? {}));
     });
@@ -63,11 +85,31 @@ describe('KafkaValueDecoder with a stub Schema Registry', () => {
     expect(message).toMatchObject({ valueFormat: 'json-schema', value: '{"flowId":"abc-1"}', flowId: 'abc-1' });
   });
 
-  it('explains that protobuf is not supported yet and keeps a hex preview', async () => {
+  it('decodes registry protobuf messages using the message index and schema references', async () => {
     const decoder = new KafkaValueDecoder();
     decoder.configure({ url });
-    const message = await decoder.decodeMessage(binaryMessage(wireFormat(3, Buffer.from([1, 2]))));
-    expect(message).toMatchObject({ valueFormat: 'protobuf', decodeError: 'Protobuf decoding not supported yet', value: '01 02' });
+    const payload = encodeOrder('shop.Order', ORDER_VALUE);
+    const message = await decoder.decodeMessage(binaryMessage(protobufEnvelope(3, [1], payload)));
+    expect(message).toMatchObject({ valueFormat: 'protobuf', schemaId: 3, decodeError: undefined });
+    expect(JSON.parse(message.value)).toEqual({ id: 'o-9', total: { currency: 'EUR', amount: 12 }, created: { seconds: '1700000000' }, tags: ['a', 'b'], big: '9007199254740993' });
+  });
+
+  it('selects the first message type for the single-byte default message index', async () => {
+    const decoder = new KafkaValueDecoder();
+    decoder.configure({ url });
+    const payload = encodeOrder('shop.Customer', { name: 'Ann' });
+    const decoded = await decoder.decodeBytes(wireFormat(3, Buffer.concat([Buffer.from([0]), payload])));
+    expect(JSON.parse(decoded.text)).toEqual({ name: 'Ann' });
+  });
+
+  it('falls back to hex with a friendly error when the registry protobuf cannot be decoded', async () => {
+    const decoder = new KafkaValueDecoder();
+    decoder.configure({ url });
+    const broken = await decoder.decodeBytes(protobufEnvelope(4, [0], Buffer.from([1])));
+    expect(broken).toMatchObject({ format: 'binary', schemaId: 4 });
+    expect(broken.error).toMatch(/Could not decode with schema 4/);
+    const outOfRange = await decoder.decodeBytes(protobufEnvelope(3, [7], Buffer.from([1])));
+    expect(outOfRange.error).toMatch(/Message index \[7\] not found/);
   });
 
   it('falls back to a hex preview when the schema is unknown', async () => {

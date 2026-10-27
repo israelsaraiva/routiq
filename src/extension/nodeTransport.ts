@@ -1,5 +1,6 @@
-import { IncomingMessage, request as httpRequest } from 'node:http';
+import { ClientRequest, IncomingMessage, RequestOptions, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
+import { ADDRESS_FALLBACK_TIMEOUT_MS, DEFAULT_CONNECT_TIMEOUT_MS } from '../core/network';
 import { FetchPayload } from './requestPayload';
 
 const SET_COOKIE = 'set-cookie';
@@ -21,6 +22,7 @@ export interface NodeRequestOptions {
   headers: Record<string, string>;
   body: FetchPayload['body'];
   rejectUnauthorized: boolean;
+  connectTimeoutMs?: number;
   signal: AbortSignal;
 }
 
@@ -92,6 +94,20 @@ function toTransportResponse(message: IncomingMessage): TransportResponse {
   };
 }
 
+function failOnConnectTimeout(request: ClientRequest, connectTimeoutMs: number): void {
+  request.once('socket', (socket) => {
+    if (!socket.connecting) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const error = Object.assign(new Error('Connect Timeout Error'), { code: 'UND_ERR_CONNECT_TIMEOUT' });
+      request.destroy(error);
+    }, connectTimeoutMs);
+    socket.once('connect', () => clearTimeout(timer));
+    socket.once('close', () => clearTimeout(timer));
+  });
+}
+
 export async function sendViaNode(options: NodeRequestOptions): Promise<TransportResponse> {
   const encoded = await encodeBody(options.body);
   const send = options.url.toLowerCase().startsWith('https:') ? httpsRequest : httpRequest;
@@ -102,10 +118,13 @@ export async function sendViaNode(options: NodeRequestOptions): Promise<Transpor
         method: options.method,
         headers: headersFor(options.headers, encoded),
         rejectUnauthorized: options.rejectUnauthorized,
+        autoSelectFamily: true,
+        autoSelectFamilyAttemptTimeout: ADDRESS_FALLBACK_TIMEOUT_MS,
         signal: options.signal,
-      },
+      } as RequestOptions,
       (message) => resolve(toTransportResponse(message)),
     );
+    failOnConnectTimeout(request, options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS);
     request.on('error', reject);
     request.end(encoded.buffer);
   });

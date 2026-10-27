@@ -13,6 +13,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { describeTiming } from '../core/network';
+import { isNetworkFailureMessage } from '../core/networkErrors';
 import { extensionForContentType, findContentType, languageForBody } from '../core/responseBody';
 import { findMatches, splitTokensByMatches, wrapIndex } from '../core/textSearch';
 import { tokenize } from '../core/syntaxTokens';
@@ -34,11 +35,12 @@ import { postToHost } from './vscodeApi';
 interface Props {
   response: ResponseModel | undefined;
   sending: boolean;
+  onDiagnoseNetwork?: () => void;
 }
 
 type ResponseTab = 'body' | 'headers' | 'tests';
 
-export function ResponseViewer({ response, sending }: Props) {
+export function ResponseViewer({ response, sending, onDiagnoseNetwork }: Props) {
   if (sending) {
     return <ResponseSkeleton />;
   }
@@ -46,7 +48,7 @@ export function ResponseViewer({ response, sending }: Props) {
     return <EmptyResponse />;
   }
   if (response.error) {
-    return <ErrorCard message={response.error} />;
+    return <ErrorCard message={response.error} onDiagnoseNetwork={onDiagnoseNetwork} />;
   }
   return <ResponseContent response={response} />;
 }
@@ -138,13 +140,18 @@ function ResponseSkeleton() {
   );
 }
 
-function ErrorCard({ message }: { message: string }) {
+function ErrorCard({ message, onDiagnoseNetwork }: { message: string; onDiagnoseNetwork?: () => void }) {
   return (
     <Alert variant="destructive">
       <Icon icon={Alert02Icon} size={20} />
       <div className="ui-alert-body">
         <AlertTitle>Request failed</AlertTitle>
         <AlertDescription>{message}</AlertDescription>
+        {onDiagnoseNetwork && isNetworkFailureMessage(message) && (
+          <Button variant="secondary" size="sm" onClick={onDiagnoseNetwork}>
+            Diagnose network
+          </Button>
+        )}
       </div>
     </Alert>
   );

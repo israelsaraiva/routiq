@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createKafkaProfile } from '../../core/kafka/profiles';
 import { buildSendJobRequest, readOnlyReason } from '../../core/kafka/sendJob';
 import { templateFromDraft } from '../../core/kafka/sendTemplates';
+import { isTombstone } from '../../core/kafka/tombstone';
 import { generateId } from '../../core/ids';
 import { KafkaMessage, KafkaProfileDraft } from '../../shared/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -15,6 +16,11 @@ import { EMPTY_SEND_DRAFT, SendDraft, SendForm } from './SendForm';
 import { useKafkaHost } from './useKafkaHost';
 
 const DEFAULT_PROFILE_NAME = 'New Connection';
+
+function tombstoneDraftFields(message: KafkaMessage): Pick<SendDraft, 'value' | 'tombstone'> {
+  const tombstone = isTombstone(message);
+  return { value: tombstone ? '' : message.value, tombstone };
+}
 
 export function KafkaView() {
   const host = useKafkaHost();
@@ -32,6 +38,9 @@ export function KafkaView() {
   useEffect(() => setSendPending(false), [host.produceResult]);
 
   const send = (current: SendDraft, headers: Record<string, string>) => {
+    if (current.tombstone) {
+      return sendJob(current, headers);
+    }
     setSendPending(true);
     postKafkaMessage({
       type: 'kafkaProduce',
@@ -50,7 +59,7 @@ export function KafkaView() {
       topic: message.topic,
       key: message.key ?? '',
       headers: message.headers ? JSON.stringify(message.headers, null, 2) : '',
-      value: message.value,
+      ...tombstoneDraftFields(message),
     });
     setTab('send');
   };
@@ -87,7 +96,7 @@ export function KafkaView() {
             connected={host.status.state === 'connected'}
             produce={{ profile: draft, profiles: host.profiles, job: host.jobProgress }}
             onUseForSend={useForSend}
-            onResend={(message) => send({ ...EMPTY_SEND_DRAFT, topic: message.topic, key: message.key ?? '', value: message.value }, message.headers ?? {})}
+            onResend={(message) => send({ ...EMPTY_SEND_DRAFT, topic: message.topic, key: message.key ?? '', ...tombstoneDraftFields(message) }, message.headers ?? {})}
           />
         </TabsContent>
         <TabsContent value="send">

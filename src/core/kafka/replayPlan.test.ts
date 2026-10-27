@@ -53,6 +53,13 @@ describe('planReplay', () => {
     expect(planReplay(baseOptions({ messages: [message('a', 0, '1', 1, { value: '' })] })).records[0].value).toBeNull();
   });
 
+  it('keeps an explicit empty string distinct from a tombstone', () => {
+    const records = planReplay(
+      baseOptions({ messages: [message('a', 0, '1', 1, { value: '', tombstone: false }), message('b', 0, '2', 2, { value: '', tombstone: true })] }),
+    ).records;
+    expect(records.map((record) => record.value)).toEqual(['', null]);
+  });
+
   it('flags the same topic on the same connection or cluster', () => {
     expect(planReplay(baseOptions({ targetProfile: { id: 'src', name: 'Source', brokers: 'localhost:9092' }, targetTopic: 'orders' }))).toMatchObject({
       sameConnection: true,

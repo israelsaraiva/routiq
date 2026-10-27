@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Kafka: protobuf decoding (Schema Registry and local .proto), tombstone fidelity, topic config editing and partition increase, CSV import, broker version hint.
+- gRPC: server reflection (v1 and v1alpha).
+- Postman import/export: fuller auth mapping (OAuth2, Digest, inheritance) with warnings for unsupported types.
+- HTTP/GraphQL conversion: Undo and sidebar context-menu commands.
+- Network: Diagnose Network command, `routiq.connectTimeoutMs`, connect vs response timeout messages, IPv6 fallback.
+- Refreshed Marketplace description, screenshots and README.
+
 ## 0.3.0
 
 Kafka listener
