@@ -2,7 +2,7 @@
   "name": "routiq",
   "displayName": "Routiq",
   "description": "A lightweight Insomnia/Postman-like REST client inside VS Code.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",
@@ -120,6 +120,11 @@
           "type": "boolean",
           "default": true,
           "description": "Verify TLS certificates. Disable to allow self-signed certificates (insecure)."
+        },
+        "routiq.useVsCodeNetworking": {
+          "type": "boolean",
+          "default": true,
+          "description": "Send HTTP requests through VS Code's networking stack so the system proxy (including PAC files), http.proxy and system certificates apply, like a browser. Ignored when routiq.proxy is set."
         },
         "routiq.scripts.timeoutMs": {
           "type": "number",

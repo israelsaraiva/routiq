@@ -44,6 +44,7 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 | `routiq.maxRedirects` | `10` | Maximum redirects followed. |
 | `routiq.proxy` | `""` | Proxy URL; empty falls back to `http.proxy` and environment variables. |
 | `routiq.rejectUnauthorized` | `true` | Verify TLS certificates. |
+| `routiq.useVsCodeNetworking` | `true` | Send HTTP requests through VS Code's networking (system proxy/PAC, `http.proxy`, system certificates). Ignored when `routiq.proxy` is set. |
 | `routiq.scripts.timeoutMs` | `5000` | Maximum run time of each script. |
 | `routiq.runner.delayMs` | `0` | Delay between requests in the runner. |
 

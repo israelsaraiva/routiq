@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- New `routiq.useVsCodeNetworking` setting (default on): HTTP requests go through VS Code networking so the Windows/system proxy, PAC files and system certificates apply, as in Postman. Ignored when `routiq.proxy` is set.
+- Timeout and connection errors now state how the request was routed (VS Code networking, proxy or direct) and which settings to check.
+
 ## 0.1.1
 
 - A visible **Copy cURL** button in the request toolbar.

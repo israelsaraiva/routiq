@@ -401,6 +401,7 @@ const NETWORK_SETTINGS: HelpSection = {
       title: 'Proxy and SSL',
       body: [
         'routiq.proxy falls back to the VS Code http.proxy setting, then HTTPS_PROXY/HTTP_PROXY; NO_PROXY is honoured.',
+        'When routiq.proxy is empty and routiq.useVsCodeNetworking is on (default), requests use VS Code networking, so the system proxy/PAC, http.proxy and system certificates apply. Turn it off to use the built-in HTTP client.',
         'Set routiq.rejectUnauthorized to false to accept self-signed certificates (insecure).',
       ],
       keywords: ['certificate', 'tls', 'self-signed', 'https'],

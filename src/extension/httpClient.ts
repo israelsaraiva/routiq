@@ -5,9 +5,8 @@ import { NetworkSettings } from '../core/network';
 import { PreparedRequest } from '../core/requestBuilder';
 import { resolveRedirect } from '../core/redirects';
 import { ResponseModel, ResponseTiming } from '../shared/types';
+import { sendViaNode, TransportResponse } from './nodeTransport';
 import { buildPayload } from './requestPayload';
-
-type UndiciResponse = Awaited<ReturnType<typeof fetch>>;
 
 export interface CookieSession {
   headerFor(url: string): string | undefined;
@@ -22,7 +21,7 @@ export interface SendOptions {
 }
 
 interface FinalHop {
-  response: UndiciResponse;
+  response: TransportResponse;
   redirects: number;
   headersReceivedAt: number;
 }
@@ -49,15 +48,73 @@ function errorResponse(message: string, timeMs: number): ResponseModel {
   return { status: 0, statusText: '', timeMs, sizeBytes: 0, headers: [], body: '', error: message };
 }
 
-function describeError(error: unknown, timeoutMs: number): string {
-  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-    return `Request timed out after ${timeoutMs} ms`;
+export function usesVsCodeNetworking(network: NetworkSettings): boolean {
+  return network.useVsCodeNetworking === true;
+}
+
+function withoutCredentials(proxyUrl: string): string {
+  try {
+    const parsed = new URL(proxyUrl);
+    parsed.username = '';
+    parsed.password = '';
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return proxyUrl;
+  }
+}
+
+function describeRouting(network: NetworkSettings): string {
+  if (usesVsCodeNetworking(network)) {
+    return 'via VS Code networking';
+  }
+  return network.proxyUrl ? `via proxy ${withoutCredentials(network.proxyUrl)}` : 'direct connection';
+}
+
+function withRoutingHint(message: string, network: NetworkSettings): string {
+  return `${message} (${describeRouting(network)}). Check the routiq.proxy, http.proxy and routiq.timeoutMs settings.`;
+}
+
+function isTimeout(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+}
+
+function describeError(error: unknown, options: SendOptions): string {
+  if (isTimeout(error)) {
+    return withRoutingHint(`Request timed out after ${options.timeoutMs} ms`, options.network);
   }
   if (error instanceof Error) {
     const cause = (error as Error & { cause?: { message?: string } }).cause;
-    return cause?.message ? `${error.message}: ${cause.message}` : error.message;
+    const message = cause?.message ? `${error.message}: ${cause.message}` : error.message;
+    return cause || 'code' in error ? withRoutingHint(message, options.network) : message;
   }
   return String(error);
+}
+
+function sendViaTransport(
+  prepared: PreparedRequest,
+  headers: Record<string, string>,
+  body: Awaited<ReturnType<typeof buildPayload>>['body'],
+  options: SendOptions,
+  signal: AbortSignal,
+): Promise<TransportResponse> {
+  if (usesVsCodeNetworking(options.network)) {
+    return sendViaNode({
+      url: prepared.url,
+      method: prepared.method,
+      headers,
+      body,
+      rejectUnauthorized: options.network.rejectUnauthorized,
+      signal,
+    });
+  }
+  return fetch(prepared.url, {
+    method: prepared.method,
+    headers,
+    body: body as never,
+    redirect: 'manual',
+    signal,
+    dispatcher: dispatcherFor(options.network),
+  });
 }
 
 export function withCookieHeader(headers: Record<string, string>, cookieHeader: string | undefined): Record<string, string> {
@@ -74,16 +131,10 @@ async function fetchOnce(
   headers: Record<string, string>,
   options: SendOptions,
   signal: AbortSignal,
-): Promise<UndiciResponse> {
+): Promise<TransportResponse> {
   const payload = await buildPayload({ ...prepared, headers });
-  const response = await fetch(prepared.url, {
-    method: prepared.method,
-    headers: withCookieHeader(payload.headers, options.cookies?.headerFor(prepared.url)),
-    body: payload.body as never,
-    redirect: 'manual',
-    signal,
-    dispatcher: dispatcherFor(options.network),
-  });
+  const headersWithCookies = withCookieHeader(payload.headers, options.cookies?.headerFor(prepared.url));
+  const response = await sendViaTransport(prepared, headersWithCookies, payload.body, options, signal);
   options.cookies?.store(prepared.url, response.headers.getSetCookie());
   return response;
 }
@@ -102,7 +153,7 @@ function digestHeaderFor(prepared: PreparedRequest, challengeHeader: string | nu
   return buildDigestAuthorization(challenge, prepared.digest, context);
 }
 
-async function fetchWithDigestRetry(prepared: PreparedRequest, options: SendOptions, signal: AbortSignal): Promise<UndiciResponse> {
+async function fetchWithDigestRetry(prepared: PreparedRequest, options: SendOptions, signal: AbortSignal): Promise<TransportResponse> {
   const first = await fetchOnce(prepared, prepared.headers, options, signal);
   if (first.status !== 401 || !prepared.digest) {
     return first;
@@ -115,7 +166,7 @@ async function fetchWithDigestRetry(prepared: PreparedRequest, options: SendOpti
   return fetchOnce(prepared, { ...prepared.headers, Authorization: authorization }, options, signal);
 }
 
-function redirectedRequest(prepared: PreparedRequest, response: UndiciResponse): PreparedRequest | undefined {
+function redirectedRequest(prepared: PreparedRequest, response: TransportResponse): PreparedRequest | undefined {
   const target = resolveRedirect({
     status: response.status,
     method: prepared.method,
@@ -186,7 +237,7 @@ export async function sendRequest(prepared: PreparedRequest, options: SendOption
   try {
     return await toResponseModel(await followRedirects(prepared, options, signal), startedAt);
   } catch (error) {
-    const message = options.signal?.aborted ? REQUEST_ABORTED_MESSAGE : describeError(error, options.timeoutMs);
+    const message = options.signal?.aborted ? REQUEST_ABORTED_MESSAGE : describeError(error, options);
     return errorResponse(message, Date.now() - startedAt);
   } finally {
     release();

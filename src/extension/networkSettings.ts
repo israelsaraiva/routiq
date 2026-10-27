@@ -9,12 +9,14 @@ export function defaultTimeoutMs(): number {
 
 function readNetworkSettings(targetUrl: string): NetworkSettings {
   const settings = vscode.workspace.getConfiguration('routiq');
+  const routiqProxy = settings.get<string>('proxy', '');
   const vscodeProxy = vscode.workspace.getConfiguration('http').get<string>('proxy', '');
   return {
     followRedirects: settings.get<boolean>('followRedirects', true),
     maxRedirects: normalizeMaxRedirects(settings.get<number>('maxRedirects', 10)),
-    proxyUrl: resolveProxyUrl(targetUrl, { routiqProxy: settings.get<string>('proxy', ''), vscodeProxy, env: process.env }),
+    proxyUrl: resolveProxyUrl(targetUrl, { routiqProxy, vscodeProxy, env: process.env }),
     rejectUnauthorized: settings.get<boolean>('rejectUnauthorized', true),
+    useVsCodeNetworking: settings.get<boolean>('useVsCodeNetworking', true) && routiqProxy.trim() === '',
   };
 }
 

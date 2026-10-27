@@ -3,6 +3,7 @@ export interface NetworkSettings {
   maxRedirects: number;
   proxyUrl?: string;
   rejectUnauthorized: boolean;
+  useVsCodeNetworking?: boolean;
 }
 
 export const DEFAULT_MAX_REDIRECTS = 10;
