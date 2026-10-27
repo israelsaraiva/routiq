@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { KafkaSecretValues } from '../shared/kafkaEngineTypes';
+import { KafkaProfileSecrets } from './kafkaProfileSecrets';
 import { KafkaProfile, KafkaProfileDraft, KafkaProfileView } from '../shared/types';
 import { createKafkaProfile, duplicateProfile, normalizeStoredProfiles, removeProfile, saslPasswordKey, stripPassword, uniqueProfileName, upsertProfile } from '../core/kafka/profiles';
 
@@ -8,11 +10,14 @@ const LAST_PROFILE_KEY = 'routiq.kafka.lastProfileId';
 export class KafkaProfileStore implements vscode.Disposable {
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChange = this.changed.event;
+  private readonly engineSecrets: KafkaProfileSecrets;
 
   constructor(
     private readonly memento: vscode.Memento,
     private readonly secrets: vscode.SecretStorage,
-  ) {}
+  ) {
+    this.engineSecrets = new KafkaProfileSecrets(secrets);
+  }
 
   list(): KafkaProfile[] {
     return normalizeStoredProfiles(this.memento.get<unknown>(PROFILES_KEY));
@@ -32,7 +37,13 @@ export class KafkaProfileStore implements vscode.Disposable {
   }
 
   async views(): Promise<KafkaProfileView[]> {
-    return Promise.all(this.list().map(async (profile) => ({ ...profile, hasSaslPassword: (await this.readPassword(profile.id)) !== undefined })));
+    return Promise.all(
+      this.list().map(async (profile) => ({
+        ...profile,
+        hasSaslPassword: (await this.readPassword(profile.id)) !== undefined,
+        storedSecrets: await this.engineSecrets.storedNames(profile.id),
+      })),
+    );
   }
 
   async create(baseName: string): Promise<KafkaProfile> {
@@ -43,6 +54,7 @@ export class KafkaProfileStore implements vscode.Disposable {
 
   async save(draft: KafkaProfileDraft): Promise<void> {
     await this.writePassword(draft);
+    await this.engineSecrets.write(draft.id, draft.secrets);
     await this.writeProfiles(upsertProfile(this.list(), stripPassword(draft)));
   }
 
@@ -54,6 +66,7 @@ export class KafkaProfileStore implements vscode.Disposable {
     const copy = duplicateProfile(this.list(), source);
     const password = await this.readPassword(source.id);
     password !== undefined && (await this.secrets.store(saslPasswordKey(copy.id), password));
+    await this.engineSecrets.copy(source.id, copy.id);
     await this.writeProfiles(upsertProfile(this.list(), copy));
     return copy;
   }
@@ -65,7 +78,12 @@ export class KafkaProfileStore implements vscode.Disposable {
 
   async remove(profileId: string): Promise<void> {
     await this.secrets.delete(saslPasswordKey(profileId));
+    await this.engineSecrets.removeAll(profileId);
     await this.writeProfiles(removeProfile(this.list(), profileId));
+  }
+
+  readSecrets(profileId: string): Promise<KafkaSecretValues> {
+    return this.engineSecrets.read(profileId);
   }
 
   readPassword(profileId: string): Thenable<string | undefined> {

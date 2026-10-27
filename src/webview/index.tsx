@@ -10,6 +10,8 @@ import './ui.css';
 import './styles.css';
 import './info.css';
 import './kafka/kafka.css';
+import './kafka/messages.css';
+import './kafka/produce.css';
 
 const scriptNonce = document.currentScript instanceof HTMLScriptElement ? document.currentScript.nonce : '';
 if (scriptNonce) {

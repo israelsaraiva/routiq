@@ -489,7 +489,8 @@ const KAFKA: HelpSection = {
       title: 'Connect and listen',
       body: [
         'Open the Kafka view and choose New Connection (or run "Routiq: Open Kafka Listener"). Enter one or more brokers and comma-separated topics, then Connect.',
-        'Use Test Kafka fills localhost:9092 and the sample topics. Optional: consumer group, consume from beginning, SSL/TLS and SASL (PLAIN, SCRAM-SHA-256/512). The SASL password is kept in VS Code Secret Storage, never in plain JSON.',
+        'Use Test Kafka fills localhost:9092 and the sample topics. Optional: consumer group, start position (latest, beginning, offsets, timestamp or last N per partition), SSL/TLS and SASL (PLAIN, SCRAM, OAuth bearer, AWS MSK IAM) with presets for Confluent Cloud, MSK IAM, OAuth and mutual TLS. Passwords, tokens and keys are kept in VS Code Secret Storage, never in plain JSON.',
+        'If the broker drops, the listener reconnects with backoff and resumes where it stopped; Disconnect stops it. gzip, snappy, lz4 and zstd records are decoded. Large values are truncated with a Show full button (routiq.kafka.maxMessageBytesDisplayed).',
         'Pick a collection under "Variables from collection" to use {{variables}} in brokers, topics and the send form.',
       ],
       keywords: ['kafka', 'broker', 'topic', 'sasl', 'ssl', 'consumer'],
@@ -517,6 +518,16 @@ const KAFKA: HelpSection = {
       title: 'Splunk JSON log file',
       body: ['The Log file tab imports a Splunk JSON export (single JSON, array or NDJSON) and shows it as flows, with search, container/level filters and ordering.'],
       keywords: ['splunk', 'json', 'log', 'ndjson'],
+    },
+    {
+      id: 'kafka-admin',
+      title: 'Cluster administration',
+      body: [
+        'The Topics tab lists every topic with partitions, replication, offsets and an approximate message count. Click a row for leader/replicas/ISR and read-only configs, "Add to listener" or "Consume" to pick it for the listener, create a topic with "New topic" or delete one (both ask for confirmation). Internal topics are hidden unless "Show internal" is on.',
+        'The Consumer groups tab shows state, members, committed offsets and lag per partition. Auto-refresh polls every routiq.kafka.groupsRefreshSeconds. Empty groups can be deleted or have their offsets reset to earliest, latest or a timestamp.',
+        'The Cluster tab lists brokers, the controller and the cluster id. Missing ACL permissions are reported as friendly errors; admin calls time out after routiq.kafka.adminTimeoutMs.',
+      ],
+      keywords: ['admin', 'topics', 'consumer group', 'lag', 'offsets', 'reset', 'cluster', 'broker', 'partitions'],
     },
   ],
 };

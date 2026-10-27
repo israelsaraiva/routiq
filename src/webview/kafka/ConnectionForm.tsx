@@ -1,5 +1,5 @@
 import { FloppyDiskIcon, PlayIcon, StopIcon } from '@hugeicons/core-free-icons';
-import { DEFAULT_BROKER, LOCAL_TEST_TOPICS, SASL_MECHANISM_OPTIONS } from '../../core/kafka/connection';
+import { DEFAULT_BROKER, LOCAL_TEST_TOPICS } from '../../core/kafka/connection';
 import { KafkaCollectionOption, KafkaProfileDraft, KafkaProfileView, KafkaStatus } from '../../shared/types';
 import { Icon } from '../Icon';
 import { ConfirmAction } from '../components/ConfirmAction';
@@ -8,10 +8,12 @@ import { OptionSelect } from '../components/OptionSelect';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { AuthFields, storedSecretsOf } from './AuthFields';
 import { FormField } from './FormField';
+import { StartPositionFields } from './StartPositionFields';
 
 const NO_COLLECTION = '__none__';
-const STATUS_VARIANT = { disconnected: 'secondary', connecting: 'warning', connected: 'success', error: 'destructive' } as const;
+const STATUS_VARIANT = { disconnected: 'secondary', connecting: 'warning', connected: 'success', reconnecting: 'warning', error: 'destructive' } as const;
 
 interface Props {
   draft: KafkaProfileDraft;
@@ -29,8 +31,7 @@ interface Props {
 
 export function ConnectionForm({ draft, profiles, collections, status, hasStoredPassword, onChange, onSelectProfile, onSave, onDelete, onConnect, onDisconnect }: Props) {
   const patch = (changes: Partial<KafkaProfileDraft>) => onChange({ ...draft, ...changes });
-  const isConnected = status.state === 'connected' || status.state === 'connecting';
-  const usesSasl = draft.saslMechanism !== 'none';
+  const isConnected = status.state === 'connected' || status.state === 'connecting' || status.state === 'reconnecting';
   const profileOptions = profiles.map((profile) => ({ value: profile.id, label: profile.name }));
   const collectionOptions = [{ value: NO_COLLECTION, label: 'None' }, ...collections.map((collection) => ({ value: collection.id, label: collection.name }))];
 
@@ -58,27 +59,28 @@ export function ConnectionForm({ draft, profiles, collections, status, hasStored
       <FormField label="Consumer group (optional)">
         {(id) => <Input id={id} value={draft.groupId} placeholder="auto-generated" disabled={isConnected} onChange={(event) => patch({ groupId: event.target.value })} />}
       </FormField>
-      <LabeledSwitch label="Consume from beginning" checked={draft.fromBeginning} onCheckedChange={(fromBeginning) => patch({ fromBeginning })} />
-      <LabeledSwitch label="SSL / TLS" checked={draft.ssl} onCheckedChange={(ssl) => patch({ ssl })} />
-      <FormField label="SASL">
-        {() => <OptionSelect value={draft.saslMechanism} options={SASL_MECHANISM_OPTIONS} onValueChange={(saslMechanism) => patch({ saslMechanism })} ariaLabel="SASL mechanism" />}
+      <StartPositionFields draft={draft} disabled={isConnected} onChange={patch} />
+      <LabeledSwitch
+        label="Read-only (never produce)"
+        title="Disables Send, Resend and Replay for this connection"
+        checked={draft.readOnly === true}
+        onCheckedChange={(readOnly) => patch({ readOnly })}
+      />
+      <AuthFields
+        draft={draft}
+        storedSecrets={storedSecretsOf(profiles.find((profile) => profile.id === draft.id))}
+        hasStoredPassword={hasStoredPassword}
+        onChange={onChange}
+      />
+      <FormField label="Schema Registry URL (optional)">
+        {(id) => <Input id={id} value={draft.schemaRegistryUrl ?? ''} placeholder="http://localhost:8081" onChange={(event) => patch({ schemaRegistryUrl: event.target.value })} />}
       </FormField>
-      {usesSasl && (
-        <>
-          <FormField label="SASL username">{(id) => <Input id={id} value={draft.saslUsername} onChange={(event) => patch({ saslUsername: event.target.value })} />}</FormField>
-          <FormField label="SASL password">
-            {(id) => (
-              <Input
-                id={id}
-                type="password"
-                value={draft.saslPassword ?? ''}
-                placeholder={hasStoredPassword ? 'Stored in Secret Storage' : ''}
-                onChange={(event) => patch({ saslPassword: event.target.value })}
-              />
-            )}
-          </FormField>
-        </>
-      )}
+      <FormField label="Schema Registry username">
+        {(id) => <Input id={id} value={draft.schemaRegistryUsername ?? ''} onChange={(event) => patch({ schemaRegistryUsername: event.target.value })} />}
+      </FormField>
+      <FormField label="Schema Registry password">
+        {(id) => <Input id={id} type="password" value={draft.schemaRegistryPassword ?? ''} onChange={(event) => patch({ schemaRegistryPassword: event.target.value })} />}
+      </FormField>
       <FormField label="Variables from collection">
         {() => (
           <OptionSelect
@@ -92,7 +94,7 @@ export function ConnectionForm({ draft, profiles, collections, status, hasStored
       <div className="kafka-actions">
         {isConnected ? (
           <Button variant="destructive" onClick={onDisconnect}>
-            <Icon icon={StopIcon} /> Disconnect
+            <Icon icon={StopIcon} /> {status.state === 'reconnecting' ? 'Stop reconnecting' : 'Disconnect'}
           </Button>
         ) : (
           <Button onClick={onConnect}>

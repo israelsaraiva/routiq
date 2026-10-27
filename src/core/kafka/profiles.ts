@@ -1,6 +1,7 @@
 import { KafkaProfile, KafkaProfileDraft } from '../../shared/types';
 import { IdGenerator, generateId } from '../ids';
 import { DEFAULT_BROKER } from './connection';
+import { resolveStartMode } from './startPosition';
 
 export function createKafkaProfile(name: string, newId: IdGenerator = generateId): KafkaProfile {
   return {
@@ -13,10 +14,12 @@ export function createKafkaProfile(name: string, newId: IdGenerator = generateId
     ssl: false,
     saslMechanism: 'none',
     saslUsername: '',
+    startMode: 'latest',
+    authPreset: 'custom',
   };
 }
 
-export function stripPassword({ saslPassword: _saslPassword, ...profile }: KafkaProfileDraft): KafkaProfile {
+export function stripPassword({ saslPassword: _saslPassword, secrets: _secrets, schemaRegistryPassword: _schemaRegistryPassword, ...profile }: KafkaProfileDraft): KafkaProfile {
   return profile;
 }
 
@@ -61,7 +64,12 @@ export function saslPasswordKey(profileId: string): string {
 }
 
 export function normalizeStoredProfiles(stored: unknown): KafkaProfile[] {
-  return Array.isArray(stored) ? stored.filter(isStoredProfile).map((profile) => ({ ...createKafkaProfile(profile.name, () => profile.id), ...profile })) : [];
+  return Array.isArray(stored) ? stored.filter(isStoredProfile).map(migrateStoredProfile) : [];
+}
+
+export function migrateStoredProfile(profile: KafkaProfile): KafkaProfile {
+  const merged = { ...createKafkaProfile(profile.name, () => profile.id), ...profile };
+  return { ...merged, startMode: resolveStartMode(profile), fromBeginning: resolveStartMode(profile) === 'beginning' };
 }
 
 function isStoredProfile(value: unknown): value is KafkaProfile {

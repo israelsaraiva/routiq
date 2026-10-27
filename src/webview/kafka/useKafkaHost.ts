@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { prependMessages } from '../../core/kafka/messageList';
+import { MessageBatcher, animationFrameScheduler } from '../../core/kafka/messageBatcher';
+import { prependMessages, replaceMessageById } from '../../core/kafka/messageList';
+import { KafkaDecodedValue, KafkaUiState } from '../../shared/kafkaMessageTypes';
+import { KafkaJobProgress, KafkaSendTemplate } from '../../shared/kafkaProduceTypes';
 import { KafkaCollectionOption, KafkaHostMessage, KafkaLogFile, KafkaMessage, KafkaProduceResult, KafkaProfileView, KafkaStatus } from '../../shared/types';
 import { postKafkaMessage } from '../vscodeApi';
 
@@ -13,7 +16,13 @@ export interface KafkaHostState {
   messages: KafkaMessage[];
   logFile?: KafkaLogFile;
   produceResult?: KafkaProduceResult;
+  jobProgress?: KafkaJobProgress;
+  templates?: KafkaSendTemplate[];
+  ui?: KafkaUiState;
+  decodedValues?: Record<string, KafkaDecodedValue>;
 }
+
+const MAX_PENDING_MESSAGES = 10000;
 
 const INITIAL_STATE: KafkaHostState = {
   ready: false,
@@ -36,10 +45,20 @@ export function reduceHostMessage(state: KafkaHostState, message: KafkaHostMessa
       return { ...state, status: message.status };
     case 'kafkaMessages':
       return { ...state, messages: message.replace ? message.messages : prependMessages(state.messages, message.messages, state.maxMessages) };
+    case 'kafkaFullMessage':
+      return { ...state, messages: replaceMessageById(state.messages, message.message) };
     case 'kafkaProduceResult':
       return { ...state, produceResult: message.result };
     case 'kafkaLogFile':
       return { ...state, logFile: message.logFile };
+    case 'kafkaJobProgress':
+      return { ...state, jobProgress: message.progress };
+    case 'kafkaTemplates':
+      return { ...state, templates: message.templates };
+    case 'kafkaUiState':
+      return { ...state, ui: message.ui };
+    case 'kafkaDecoded':
+      return { ...state, decodedValues: { ...state.decodedValues, [message.messageId]: message.decoded } };
   }
 }
 
@@ -48,10 +67,29 @@ export function useKafkaHost(): KafkaHostState {
   const apply = useCallback((message: KafkaHostMessage) => setState((current) => reduceHostMessage(current, message)), []);
 
   useEffect(() => {
-    const onMessage = (event: MessageEvent<KafkaHostMessage>) => event.data?.type?.startsWith('kafka') && apply(event.data);
+    const batcher = new MessageBatcher<KafkaMessage>(
+      (messages) => apply({ type: 'kafkaMessages', messages, replace: false }),
+      animationFrameScheduler,
+      MAX_PENDING_MESSAGES,
+    );
+    const onMessage = (event: MessageEvent<KafkaHostMessage>) => {
+      const data = event.data;
+      if (!data?.type?.startsWith('kafka')) {
+        return;
+      }
+      if (data.type === 'kafkaMessages' && !data.replace) {
+        data.messages.forEach((message) => batcher.push(message));
+        return;
+      }
+      batcher.flush();
+      apply(data);
+    };
     window.addEventListener('message', onMessage);
     postKafkaMessage({ type: 'kafkaReady' });
-    return () => window.removeEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      batcher.discard();
+    };
   }, [apply]);
 
   return state;

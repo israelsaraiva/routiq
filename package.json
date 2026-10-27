@@ -2,7 +2,7 @@
   "name": "routiq",
   "displayName": "Routiq",
   "description": "A lightweight Insomnia/Postman-like REST, GraphQL, gRPC and Kafka client inside VS Code.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",
@@ -175,17 +175,40 @@
           "minimum": 1,
           "description": "Maximum Kafka messages kept in memory per listener panel."
         },
+        "routiq.kafka.maxMessageBytesDisplayed": {
+          "type": "number",
+          "default": 100000,
+          "minimum": 0,
+          "description": "Maximum bytes of a Kafka message value shown in the listener. Larger values are truncated with a 'Show full' button. 0 disables truncation."
+        },
         "routiq.kafka.persistedMessages": {
           "type": "number",
           "default": 200,
           "minimum": 0,
           "description": "Kafka messages remembered per connection between sessions. 0 disables persistence."
         },
+        "routiq.kafka.schemaRegistryUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Default Confluent Schema Registry URL used to decode Avro / JSON Schema Kafka values when a connection has no registry URL of its own."
+        },
         "routiq.kafka.connectionTimeoutMs": {
           "type": "number",
           "default": 10000,
           "minimum": 1000,
           "description": "Kafka broker connection timeout in milliseconds."
+        },
+        "routiq.kafka.adminTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 1000,
+          "description": "Timeout in milliseconds for Kafka cluster administration calls (topics, consumer groups, cluster info)."
+        },
+        "routiq.kafka.groupsRefreshSeconds": {
+          "type": "number",
+          "default": 10,
+          "minimum": 2,
+          "description": "Auto-refresh interval in seconds for the Kafka consumer groups view."
         }
       }
     },
@@ -765,11 +788,15 @@
     "@radix-ui/react-switch": "^1.4.1",
     "@radix-ui/react-tabs": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.4.1",
+    "avsc": "^5.7.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fzstd": "^0.1.1",
     "graphql": "^16.14.2",
     "https-proxy-agent": "^9.1.0",
     "kafkajs": "^2.2.4",
+    "lz4js": "^0.2.0",
+    "snappyjs": "^0.7.0",
     "undici": "^6.29.1",
     "ws": "^8.22.0",
     "yaml": "^2.9.1"

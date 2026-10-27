@@ -34,3 +34,5 @@
 .kafka-highlight-flowId { color: var(--info); }
 .kafka-highlight-commandId { color: var(--warning); }
 @media (max-width: 720px) { .kafka-view { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .kafka-sidebar { border-right: 0; border-bottom: 1px solid var(--border); } }
+.kafka-virtual-row { padding-bottom: var(--rq-space-3); box-sizing: border-box; }
+.kafka-truncation { margin: 0; color: var(--muted-foreground); font-size: 0.9em; }

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { groupByFlow } from '../../core/kafka/flowGroups';
 import { parseJsonFile } from '../../core/kafka/jsonLogParser';
 import { LogFilterType, filterBySearchQuery, filterByType, sortByTimestamp, uniqueContainers, uniqueLevels } from '../../core/kafka/logFilters';
-import { convertToKafkaMessages } from '../../core/kafka/splunkMessages';
+import { messagesFromLogEntries } from '../../core/kafka/messageExport';
 import { KafkaLogFile } from '../../shared/types';
 import { Icon } from '../Icon';
 import { LabeledSwitch } from '../components/LabeledSwitch';
@@ -34,7 +34,7 @@ export function LogFilePanel({ logFile }: Props) {
   const selection = useMessageSelection();
 
   const parsed = useMemo(() => (logFile ? parseJsonFile(logFile.text) : undefined), [logFile]);
-  const messages = useMemo(() => (parsed ? convertToKafkaMessages(parsed.entries) : []), [parsed]);
+  const messages = useMemo(() => (parsed ? messagesFromLogEntries(parsed.entries) : []), [parsed]);
   const visible = useMemo(
     () => sortByTimestamp(filterBySearchQuery(filterByType(messages, filterType, filterValue), query), oldestFirst),
     [messages, filterType, filterValue, query, oldestFirst],

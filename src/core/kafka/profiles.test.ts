@@ -25,4 +25,11 @@ describe('profiles', () => {
     expect(normalizeStoredProfiles([base, { junk: true }])).toHaveLength(1);
     expect(saslPasswordKey('one')).toBe('routiq.kafka.one.saslPassword');
   });
+
+  it('migrates legacy profiles to a start mode and keeps secrets out of storage', () => {
+    const legacy = { ...base, fromBeginning: true, startMode: undefined };
+    expect(normalizeStoredProfiles([legacy])[0]).toMatchObject({ startMode: 'beginning', fromBeginning: true });
+    expect(normalizeStoredProfiles([{ ...base, fromBeginning: false, startMode: undefined }])[0]).toMatchObject({ startMode: 'latest', fromBeginning: false });
+    expect(stripPassword({ ...base, secrets: { oauthToken: 'x' } })).not.toHaveProperty('secrets');
+  });
 });

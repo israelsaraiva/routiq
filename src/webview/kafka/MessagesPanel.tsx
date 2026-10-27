@@ -1,17 +1,20 @@
-import { Delete02Icon, Download01Icon, PauseIcon, PlayIcon } from '@hugeicons/core-free-icons';
+import { Delete02Icon, PauseIcon, PlayIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { filterMessages, groupByFlow, isLinkedFlow, messagesExportFileName, uniqueTopics } from '../../core/kafka/flowGroups';
-import { buildMessagesExport } from '../../core/kafka/messageParsing';
+import { groupByFlow, isLinkedFlow, uniqueTopics } from '../../core/kafka/flowGroups';
+import { KafkaDecodedValue, KafkaUiState } from '../../shared/kafkaMessageTypes';
 import { KafkaMessage } from '../../shared/types';
 import { Icon } from '../Icon';
 import { ConfirmAction } from '../components/ConfirmAction';
 import { LabeledSwitch } from '../components/LabeledSwitch';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
 import { postKafkaMessage } from '../vscodeApi';
+import { ExperienceHeader } from './ExperienceHeader';
 import { FlowGroupList } from './FlowGroupList';
+import { MessageDisplayContext } from './MessageDisplayContext';
 import { copyFlow, copyMessage, copyMessages, downloadFlow } from './flowActions';
+import { ProduceActions, ProduceContext } from './ProduceActions';
+import { useMessageExperience } from './useMessageExperience';
 import { useMessageSelection } from './useMessageSelection';
 
 interface Props {
@@ -19,18 +22,21 @@ interface Props {
   connected: boolean;
   onUseForSend: (message: KafkaMessage) => void;
   onResend: (message: KafkaMessage) => void;
+  produce?: ProduceContext;
+  ui?: KafkaUiState;
+  decodedValues?: Record<string, KafkaDecodedValue>;
 }
 
-export function MessagesPanel({ messages, connected, onUseForSend, onResend }: Props) {
-  const [query, setQuery] = useState('');
-  const [topic, setTopic] = useState<string | null>(null);
+export function MessagesPanel({ messages, connected, onUseForSend, onResend, produce, ui, decodedValues }: Props) {
+  const experience = useMessageExperience({ messages, hostUi: ui, decodedValues });
+  const { topic, setTopic } = experience;
   const [frozen, setFrozen] = useState<KafkaMessage[] | null>(null);
   const [followNewest, setFollowNewest] = useState(true);
   const scroller = useRef<HTMLDivElement>(null);
   const selection = useMessageSelection();
 
   const displayed = frozen ?? messages;
-  const visible = useMemo(() => filterMessages(displayed, query, topic), [displayed, query, topic]);
+  const visible = useMemo(() => experience.apply(displayed), [displayed, experience.apply]);
   const groups = useMemo(() => groupByFlow(visible), [visible]);
   const topics = useMemo(() => uniqueTopics(displayed), [displayed]);
   const pendingCount = frozen ? messages.filter((message) => !frozen.some((known) => known.id === message.id)).length : 0;
@@ -47,20 +53,16 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend }: P
     setFrozen((current) => current && current.filter((message) => !messageIds.includes(message.id)));
   };
 
-  const exportAll = () =>
-    postKafkaMessage({ type: 'kafkaSaveFile', suggestedName: messagesExportFileName(new Date()), content: buildMessagesExport(visible) });
-
   return (
+    <MessageDisplayContext.Provider value={experience.display}>
     <div className="kafka-messages">
+      <ExperienceHeader experience={experience} />
       <div className="kafka-toolbar">
-        <Input aria-label="Search messages" placeholder="Search value, topic, flowId, key, headers…" value={query} onChange={(event) => setQuery(event.target.value)} />
         <Button variant="secondary" size="sm" onClick={() => setFrozen(frozen ? null : messages)}>
           <Icon icon={frozen ? PlayIcon : PauseIcon} /> {frozen ? `Resume${pendingCount > 0 ? ` (${pendingCount} new)` : ''}` : 'Pause'}
         </Button>
         <LabeledSwitch label="Follow newest" checked={followNewest} onCheckedChange={setFollowNewest} />
-        <Button variant="secondary" size="sm" disabled={visible.length === 0} onClick={exportAll}>
-          <Icon icon={Download01Icon} /> Export all
-        </Button>
+        {produce && <ProduceActions context={produce} visible={visible} selected={selectedMessages} />}
         <ConfirmAction
           trigger={
             <Button variant="ghost" size="sm" disabled={messages.length === 0}>
@@ -82,6 +84,14 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend }: P
           <>
             <Button variant="secondary" size="sm" onClick={() => copyMessages(selectedMessages)}>
               Copy selected ({selectedMessages.length})
+            </Button>
+            {selectedMessages.length === 2 && (
+              <Button variant="secondary" size="sm" onClick={() => experience.setCompared([selectedMessages[0], selectedMessages[1]])}>
+                Compare selected
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => experience.display.onSaveAsRequest(selectedMessages)}>
+              Save as requests ({selectedMessages.length})
             </Button>
             <ConfirmAction
               trigger={
@@ -116,6 +126,7 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend }: P
         )}
       </div>
     </div>
+    </MessageDisplayContext.Provider>
   );
 }
 

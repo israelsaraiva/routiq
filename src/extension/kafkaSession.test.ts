@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KafkaConnectionConfig } from '../core/kafka/connection';
 import { KafkaMessage, KafkaStatus } from '../shared/types';
 import { KafkaClientFactory, KafkaConsumerLike } from './kafkaClient';
@@ -15,16 +15,23 @@ function setup(overrides: Partial<KafkaConsumerLike> = {}) {
     run: vi.fn(async (handlers) => void (handler = handlers.eachMessage)),
     stop: vi.fn(async () => undefined),
     disconnect: vi.fn(async () => undefined),
+    seek: vi.fn(),
     onCrash: (listener) => void (crash = listener),
     ...overrides,
   };
   const producer = { connect: vi.fn(async () => undefined), send: vi.fn(async () => ({ partition: 1, offset: '5' })), disconnect: vi.fn(async () => undefined) };
   const groups: string[] = [];
-  const factory: KafkaClientFactory = () => ({ createConsumer: (groupId) => (groups.push(groupId), consumer), createProducer: () => producer });
+  const lookup = {
+    connect: vi.fn(async () => undefined),
+    watermarks: vi.fn(async () => [{ partition: 0, low: '0', high: '100' }]),
+    offsetsAtTimestamp: vi.fn(async () => [{ partition: 0, offset: '40' }]),
+    disconnect: vi.fn(async () => undefined),
+  };
+  const factory: KafkaClientFactory = () => ({ createConsumer: (groupId) => (groups.push(groupId), consumer), createProducer: () => producer, createOffsetLookup: () => lookup });
   const statuses: KafkaStatus[] = [];
   const messages: KafkaMessage[] = [];
   const session = new KafkaSession(factory, { onMessage: (message) => messages.push(message), onStatus: (status) => statuses.push(status) }, { connectionTimeoutMs: 50, now: () => 7 });
-  return { session, consumer, producer, statuses, messages, groups, emit: (offset: string) => handler({ topic: 't', partition: 0, message: { offset, key: null, value: Buffer.from('{"flowId":"f1"}') } }), crash: (error: Error) => crash(error) };
+  return { session, consumer, producer, lookup, statuses, messages, groups, emit: (offset: string) => handler({ topic: 't', partition: 0, message: { offset, key: null, value: Buffer.from('{"flowId":"f1"}') } }), crash: (error: Error) => crash(error) };
 }
 
 describe('KafkaSession', () => {
@@ -70,12 +77,67 @@ describe('KafkaSession', () => {
     expect(consumer.stop).toHaveBeenCalled();
   });
 
-  it('turns a consumer crash into an error status', async () => {
+  it('turns a fatal consumer crash into an error status', async () => {
     const { session, statuses, crash } = setup();
     await session.connect(config);
-    crash(new Error('rebalance failed'));
-    expect(statuses.at(-1)).toEqual({ state: 'error', detail: 'rebalance failed' });
+    crash(new Error('SASL Authentication failed'));
+    expect(statuses.at(-1)).toMatchObject({ state: 'error' });
     expect(session.isActive).toBe(false);
+  });
+
+  describe('reconnect', () => {
+    afterEach(() => void vi.useRealTimers());
+
+    it('reconnects with backoff after a crash and resumes after the last offset', async () => {
+      vi.useFakeTimers();
+      const { session, statuses, consumer, crash, emit } = setup();
+      await session.connect(config);
+      await emit('41');
+      crash(new Error('broker dropped'));
+      expect(statuses.at(-1)).toMatchObject({ state: 'reconnecting', attempt: 1 });
+      expect(session.isActive).toBe(true);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(statuses.at(-1)).toEqual({ state: 'connected', detail: 'resumed after reconnect' });
+      expect(consumer.seek).toHaveBeenCalledWith('t', 0, '42');
+    });
+
+    it('keeps retrying with an increasing attempt count while the broker is down', async () => {
+      vi.useFakeTimers();
+      const connect = vi.fn(async () => undefined);
+      const { session, statuses, crash } = setup({ connect });
+      await session.connect(config);
+      connect.mockRejectedValue(new Error('connect ECONNREFUSED'));
+      crash(new Error('broker dropped'));
+      await vi.advanceTimersByTimeAsync(120_000);
+      const attempts = statuses.flatMap((status) => (status.state === 'reconnecting' && status.attempt ? [status.attempt] : []));
+      expect(Math.max(...attempts)).toBeGreaterThan(2);
+    });
+
+    it('does not reconnect after a user disconnect', async () => {
+      vi.useFakeTimers();
+      const { session, statuses, consumer, crash } = setup();
+      await session.connect(config);
+      crash(new Error('broker dropped'));
+      await session.disconnect();
+      const connectCalls = (consumer.connect as ReturnType<typeof vi.fn>).mock.calls.length;
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect((consumer.connect as ReturnType<typeof vi.fn>).mock.calls.length).toBe(connectCalls);
+      expect(statuses.at(-1)?.state).toBe('disconnected');
+      expect(session.isActive).toBe(false);
+    });
+  });
+
+  it('seeks to the planned offsets for a last-N start position', async () => {
+    const { session, consumer } = setup();
+    await session.connect({ ...config, fromBeginning: false, startPosition: { kind: 'lastN', count: 10 } });
+    expect(consumer.seek).toHaveBeenCalledWith('t', 0, '90');
+  });
+
+  it('resolves a timestamp start position through the offset lookup', async () => {
+    const { session, consumer, lookup } = setup();
+    await session.connect({ ...config, fromBeginning: false, startPosition: { kind: 'timestamp', timestamp: 1000 } });
+    expect(lookup.offsetsAtTimestamp).toHaveBeenCalledWith('t', 1000);
+    expect(consumer.seek).toHaveBeenCalledWith('t', 0, '40');
   });
 
   it('produces and always disconnects the producer', async () => {

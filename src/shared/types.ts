@@ -1,3 +1,8 @@
+import type { KafkaAdminRequestMessage } from './kafkaAdminTypes';
+import type { KafkaDecodedFormat, KafkaMessageFeatureHostMessage, KafkaMessageFeatureWebviewMessage, KafkaUiState } from './kafkaMessageTypes';
+import type { KafkaEngineDraftFields, KafkaEngineHostMessage, KafkaEngineMessageFields, KafkaEngineProfileFields, KafkaEngineViewFields, KafkaEngineWebviewMessage } from './kafkaEngineTypes';
+import type { KafkaProduceHostMessage, KafkaProduceWebviewMessage } from './kafkaProduceTypes';
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
 export const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
@@ -366,13 +371,13 @@ export type GraphqlHostMessage =
 
 export type GraphqlWebviewMessage = { type: 'graphqlFetchSchema'; request: RequestModel } | { type: 'graphqlLoadCachedSchema'; request: RequestModel };
 
-export type KafkaSaslMechanism = 'none' | 'plain' | 'scram-sha-256' | 'scram-sha-512';
+export type KafkaSaslMechanism = 'none' | 'plain' | 'scram-sha-256' | 'scram-sha-512' | 'oauthbearer' | 'aws-msk-iam';
 
-export type KafkaConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type KafkaConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
 export type KafkaFlowIdSource = 'header' | 'json-content' | 'key' | 'none' | 'splunk';
 
-export interface KafkaProfile {
+export interface KafkaProfile extends KafkaEngineProfileFields {
   id: string;
   name: string;
   brokers: string;
@@ -383,17 +388,21 @@ export interface KafkaProfile {
   saslMechanism: KafkaSaslMechanism;
   saslUsername: string;
   variablesCollectionId?: string;
+  readOnly?: boolean;
+  schemaRegistryUrl?: string;
+  schemaRegistryUsername?: string;
 }
 
-export interface KafkaProfileView extends KafkaProfile {
+export interface KafkaProfileView extends KafkaProfile, KafkaEngineViewFields {
   hasSaslPassword: boolean;
 }
 
-export interface KafkaProfileDraft extends KafkaProfile {
+export interface KafkaProfileDraft extends KafkaProfile, KafkaEngineDraftFields {
   saslPassword?: string;
+  schemaRegistryPassword?: string;
 }
 
-export interface KafkaMessage {
+export interface KafkaMessage extends KafkaEngineMessageFields {
   id: string;
   flowId: string;
   timestamp: number;
@@ -410,11 +419,17 @@ export interface KafkaMessage {
   structuredMessage?: string;
   eventType?: string;
   flowName?: string;
+  valueBase64?: string;
+  valueFormat?: KafkaDecodedFormat;
+  schemaId?: number;
+  decodeError?: string;
+  recordTimestamp?: number;
 }
 
 export interface KafkaStatus {
   state: KafkaConnectionState;
   detail?: string;
+  attempt?: number;
 }
 
 export interface KafkaProduceRequest {
@@ -455,12 +470,16 @@ export type KafkaHostMessage =
       status: KafkaStatus;
       messages: KafkaMessage[];
       logFile?: KafkaLogFile;
+      ui?: KafkaUiState;
     }
   | { type: 'kafkaProfiles'; profiles: KafkaProfileView[]; activeProfileId?: string }
   | { type: 'kafkaStatus'; status: KafkaStatus }
   | { type: 'kafkaMessages'; messages: KafkaMessage[]; replace: boolean }
   | { type: 'kafkaProduceResult'; result: KafkaProduceResult }
-  | { type: 'kafkaLogFile'; logFile?: KafkaLogFile };
+  | { type: 'kafkaLogFile'; logFile?: KafkaLogFile }
+  | KafkaProduceHostMessage
+  | KafkaEngineHostMessage
+  | KafkaMessageFeatureHostMessage;
 
 export type KafkaWebviewMessage =
   | { type: 'kafkaReady' }
@@ -475,4 +494,8 @@ export type KafkaWebviewMessage =
   | { type: 'kafkaImportLogFile' }
   | { type: 'kafkaClearLogFile' }
   | { type: 'kafkaSaveFile'; suggestedName: string; content: string }
-  | { type: 'kafkaCopy'; text: string };
+  | { type: 'kafkaCopy'; text: string }
+  | KafkaProduceWebviewMessage
+  | KafkaEngineWebviewMessage
+  | KafkaMessageFeatureWebviewMessage
+  | KafkaAdminRequestMessage;

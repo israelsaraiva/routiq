@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+Kafka listener
+- Real record timestamps, start from offset / timestamp / last N, virtualized lists, batched rendering and large-value truncation.
+- Auto-reconnect with backoff; snappy, lz4 and zstd decoding; SASL OAUTHBEARER, AWS MSK IAM, mTLS and Confluent Cloud presets.
+- Topic browser, consumer groups with lag and offset reset, and cluster info.
+- Structured and saved filters, JSON tree, Avro / Schema Registry decoding, highlight rules, view tabs, message compare and Save as Routiq request.
+- Send templates, N copies and intervals, export (JSON / NDJSON / CSV), import, replay and a read-only connection flag.
+
 ## 0.2.2
 
 - **Auto save**: edited requests and the environments editor are saved automatically 5 seconds after the last change, and when the panel loses focus or is hidden. New settings `routiq.autoSave` (default on) and `routiq.autoSaveDelayMs` (default 5000, minimum 500), applied live. The title shows `Saving…` / `Saved`. Blank requests and invalid JSON bodies are not auto-saved; Cmd/Ctrl+S saves immediately. An edit made while a save is in flight now stays marked as unsaved.

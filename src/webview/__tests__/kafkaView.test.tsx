@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { KafkaHostMessage, KafkaMessage, KafkaProfileView } from '../../shared/types';
 
 const postKafkaMessage = vi.fn();
@@ -84,22 +84,22 @@ describe('KafkaView', () => {
     expect(screen.getByText('3 messages')).toBeTruthy();
   });
 
-  it('appends live messages and filters them with the search box', () => {
+  it('appends live messages and filters them with the search box', async () => {
     render(<KafkaView />);
     init([message('1', 'flow-a', '{"user":"ana"}')]);
     dispatchHost({ type: 'kafkaMessages', messages: [message('2', 'flow-b', '{"user":"bob"}')], replace: false });
-    expect(screen.getAllByTestId('kafka-message')).toHaveLength(2);
+    await waitFor(() => expect(screen.getAllByTestId('kafka-message')).toHaveLength(2));
     fireEvent.change(screen.getByLabelText('Search messages'), { target: { value: 'bob' } });
     expect(screen.getAllByTestId('kafka-message')).toHaveLength(1);
   });
 
-  it('freezes the list while paused and reports pending messages', () => {
+  it('freezes the list while paused and reports pending messages', async () => {
     render(<KafkaView />);
     init([message('1', 'flow-a')]);
     fireEvent.click(screen.getByRole('button', { name: /Pause/ }));
     dispatchHost({ type: 'kafkaMessages', messages: [message('2', 'flow-b')], replace: false });
     expect(screen.getAllByTestId('kafka-message')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /Resume \(1 new\)/ })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /Resume \(1 new\)/ })).toBeTruthy();
   });
 
   it('copies a message through the host', () => {
@@ -113,15 +113,16 @@ describe('KafkaView', () => {
     render(<KafkaView />);
     init([message('1', 'flow-a')]);
     fireEvent.click(screen.getByRole('button', { name: 'Use for Send' }));
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
     const send = () => fireEvent.click(screen.getByRole('button', { name: /Send message/ }));
-    fireEvent.change(screen.getByLabelText('Headers (JSON object, optional)'), { target: { value: '{' } });
+    fireEvent.change(screen.getByLabelText('Headers JSON'), { target: { value: '{' } });
     send();
-    expect(screen.getByText('Headers must be valid JSON')).toBeTruthy();
-    expect(postKafkaMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'kafkaProduce' }));
-    fireEvent.change(screen.getByLabelText('Headers (JSON object, optional)'), { target: { value: '{"a":"b"}' } });
+    expect(screen.getAllByText('Headers must be valid JSON').length).toBeGreaterThan(0);
+    expect(postKafkaMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'kafkaSend' }));
+    fireEvent.change(screen.getByLabelText('Headers JSON'), { target: { value: '{"a":"b"}' } });
     send();
     expect(postKafkaMessage).toHaveBeenCalledWith({
-      type: 'kafkaProduce',
+      type: 'kafkaSend',
       request: expect.objectContaining({ topic: 'orders', headers: { a: 'b' }, profile: expect.objectContaining({ id: 'p1' }) }),
     });
   });

@@ -7,6 +7,7 @@ import { IconButton } from '../components/IconButton';
 import { Badge } from '../components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
 import { MessageActions, MessageCard } from './MessageCard';
+import { VirtualList } from './VirtualList';
 
 export interface FlowActions extends MessageActions {
   onCopyFlow: (group: FlowGroup) => void;
@@ -30,8 +31,11 @@ export function FlowGroupList({ groups, selectedIds, onToggleSelected, onCopyFlo
     });
 
   return (
-    <div className="kafka-flows">
-      {groups.map((group) => (
+    <VirtualList
+      className="kafka-flows"
+      items={groups}
+      getKey={(group) => group.flowId}
+      renderItem={(group) => (
         <FlowGroupSection
           key={group.flowId}
           group={group}
@@ -44,8 +48,8 @@ export function FlowGroupList({ groups, selectedIds, onToggleSelected, onCopyFlo
           onDeleteFlow={onDeleteFlow}
           {...messageActions}
         />
-      ))}
-    </div>
+      )}
+    />
   );
 }
 

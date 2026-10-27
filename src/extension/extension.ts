@@ -15,8 +15,10 @@ import { chooseImportSource, exportCollectionAsPostman, exportCollections, impor
 import { InfoPanels } from './infoPanels';
 import { createKafkaClient } from './kafkaClient';
 import { KafkaMessageHistory } from './kafkaMessageHistory';
+import { KafkaMessageSettingsStore } from './kafkaMessageSettings';
 import { KafkaPanels } from './kafkaPanels';
 import { KafkaProfileStore } from './kafkaProfileStore';
+import { KafkaTemplateStore } from './kafkaTemplateStore';
 import { KafkaProfileItem, KafkaTreeProvider } from './kafkaTree';
 import { HistoryStore } from './historyStore';
 import { GraphqlSchemaStore } from './graphqlSchemaStore';
@@ -280,7 +282,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
 
   const kafkaProfiles = new KafkaProfileStore(context.globalState, context.secrets);
   const kafkaHistory = new KafkaMessageHistory(context.globalState);
-  const kafkaPanels = new KafkaPanels({ extensionUri: context.extensionUri, storage, vault, profiles: kafkaProfiles, history: kafkaHistory, clientFactory: createKafkaClient });
+  const kafkaPanels = new KafkaPanels({ extensionUri: context.extensionUri, storage, vault, profiles: kafkaProfiles, history: kafkaHistory, templates: new KafkaTemplateStore(context.globalState), messageSettings: new KafkaMessageSettingsStore(context.globalState, context.secrets), clientFactory: createKafkaClient });
   const kafkaView = vscode.window.createTreeView('routiq.kafka', { treeDataProvider: new KafkaTreeProvider(kafkaProfiles) });
 
   const autoReveal = new TreeAutoReveal(tree, treeView);

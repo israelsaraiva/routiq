@@ -79,10 +79,10 @@ describe.skipIf(!broker)('KafkaSession against a real broker', () => {
   it('delivers produced records with partition, offset, key, headers and flow id', async () => {
     const topic = uniqueName('routiq-e2e-roundtrip');
     const { session, messages, statuses } = track(createSession());
+    const before = Date.now();
     await produce(session, topic, 'flow-a', 0);
     await produce(session, topic, 'flow-a', 1);
     await produce(session, topic, 'flow-b', 2);
-    const before = Date.now();
     await session.connect(configFor(topic));
     await waitFor(() => messages.length === 3, 'three messages');
 

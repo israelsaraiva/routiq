@@ -232,16 +232,37 @@ Syntax-highlighted JSON/XML/HTML bodies (themed with VS Code colors), Pretty/Raw
 The **Kafka** view in the Routiq activity bar lists saved connections. Click **New Connection** (or run **Routiq: Open Kafka Listener**) to open a panel; each connection runs its own consumer inside the extension host (kafkajs) and is disconnected when the panel closes or the extension deactivates.
 
 - **Connection**: broker list and comma-separated topics, optional consumer group (default: a fresh `routiq-<id>` group), consume from beginning, SSL/TLS, SASL PLAIN / SCRAM-SHA-256 / SCRAM-SHA-512, **Use Test Kafka** preset (`localhost:9092` with sample topics). Brokers, topics and the send form accept `{{variables}}` from the collection picked under **Variables from collection**. Profiles are stored in global state; the SASL password only in VS Code Secret Storage.
+- **Start position**: latest, from beginning, specific offsets (`offset`, `partition:offset` or `topic:partition:offset`), from a timestamp (ISO date or epoch ms) or the last N messages per partition. Offsets are clamped to what the log still holds. Messages show the broker record timestamp; the arrival time is in the tooltip.
+- **Authentication presets**: Confluent Cloud (API key/secret over SASL PLAIN + TLS), AWS MSK IAM (SigV4 token signed in-process from the profile's access key or `AWS_*` environment variables; region taken from the broker host, the profile or `AWS_REGION`), OAuth bearer (static token or client-credentials token endpoint) and mutual TLS (CA, client certificate and key as paths or pasted PEM, optional passphrase, optional server verification off). Tokens, client secrets, AWS secrets, pasted keys and passphrases live only in VS Code Secret Storage, never in the saved profile.
+- **Reconnect**: if the broker drops or the consumer crashes, the listener reconnects with jittered exponential backoff (1 s up to 30 s), shows `reconnecting (attempt n)` with a **Stop reconnecting** button, and resumes after the last received offset instead of replaying. Authentication, TLS and unsupported-codec errors stop immediately with a friendly message; **Disconnect** never reconnects.
+- **Compression**: gzip, snappy, lz4 and zstd records are decoded (pure JavaScript, no native modules); producing zstd is not supported. Other codecs produce a clear error naming the codec.
+- **Busy topics**: message lists are windowed, incoming messages are batched per frame, and values above `routiq.kafka.maxMessageBytesDisplayed` are truncated with a **Show full** button.
 - **Messages**: newest first, grouped by flow. The flowId is read from the `flowId` / `flowid` / `flow-id` header, then the JSON content (`resource.flowId` first, then `flowId`, `flowid`, `flow-id`, `flow_id`, or a recursive search), then the message key. Search (value, topic, flowId, key, headers), topic filter, **Pause**, **Follow newest**, **Clear**, **Export all**, per-message/per-flow copy, download and delete, multi-select copy/delete, command/success/error badges and `fail`, `flowId`, `commandId` highlighting.
 - **Send**: produce a message with topic, key, headers (JSON object) and value; **Use for Send** and **Resend** reuse a received message.
 - **Log file**: import a Splunk JSON export (single JSON, array or NDJSON) and browse it as flows with search, container/level filters and sorting.
+- **Topics**: list topics with partitions, replication factor, low/high watermarks, approximate message count and leader/replicas/ISR; filter, show internal topics, view topic configs (read-only), add a topic to the listener or consume it, create topics (name, partitions, replication factor, optional configs) and delete them, both with confirmation.
+- **Consumer groups**: state, protocol and members; per-partition committed offset, log end offset and lag with total lag; manual or auto refresh; delete an empty group or reset its offsets (earliest, latest, timestamp).
+- **Cluster**: brokers (id, host, port, controller marker) and the cluster id. Missing ACL permissions are shown as friendly errors.
 - The latest messages per connection are remembered between sessions.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `routiq.kafka.maxMessages` | `1000` | Messages kept in memory per panel. |
+| `routiq.kafka.maxMessageBytesDisplayed` | `100000` | Bytes of a message value shown before truncating (`0` disables). |
 | `routiq.kafka.persistedMessages` | `200` | Messages remembered per connection (`0` disables). |
 | `routiq.kafka.connectionTimeoutMs` | `10000` | Broker connection timeout. |
+| `routiq.kafka.adminTimeoutMs` | `15000` | Timeout for topic / consumer group / cluster administration calls. |
+| `routiq.kafka.groupsRefreshSeconds` | `10` | Consumer groups auto-refresh interval. |
+
+### Message experience
+
+- **Filters**: free text with regex and case toggles, scope (all/key/value/headers), a JSON-path condition (`$.status == 'FAILED'`, or just a path to test existence), header key/value, partition, time range and errors-only. Named filters can be saved, applied, renamed and deleted; they are stored in global state. Regex patterns are length-limited and invalid ones are ignored.
+- **Views**: save the current filter and topic as a tab to watch several slices of the same live connection.
+- **Value viewer**: each message value can be shown as Tree (collapsible, searchable, click a key to copy its JSON path, click a value to copy it), Text or Raw, and decoded **as** Auto / JSON / Text / Hex / Base64 / Avro.
+- **Schema Registry / Avro**: Confluent wire format (magic byte 0 + 4-byte schema id) is decoded using the connection's Schema Registry URL (falling back to the `routiq.kafka.schemaRegistryUrl` setting), with optional basic auth (password in Secret Storage). Schemas are cached by id; JSON Schema payloads are shown as JSON, Protobuf shows "Protobuf decoding not supported yet", and binary payloads or an unreachable registry fall back to a hex preview.
+- **Highlight rules**: text, regex or JSON-path rules colour the message border, optionally show a badge and raise a rate-limited VS Code notification; hit counts are shown in the rules dialog.
+- **Compare**: select two messages and click **Compare selected** for a side-by-side JSON diff.
+- **Save as Routiq request**: creates an HTTP POST request in a chosen collection, named `topic/flowId`, with the message value as body and its headers as request headers (URL left empty).
 
 ### Local Kafka with Docker
 
