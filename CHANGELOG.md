@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Kafka: verified against a real broker. Fixed an empty error when producing to an unreachable broker and a failed first connect to a topic that is auto-created.
+
 ## 0.2.0
 
 - New **Kafka listener**: a Kafka view in the activity bar with saved connections and a dedicated panel (`Routiq: Open Kafka Listener`, `Routiq: New Kafka Connection`). Connect to one or more brokers and topics (with `{{variables}}` from a collection), choose consume-from-beginning and a consumer group, and use SSL/TLS and SASL (PLAIN, SCRAM-SHA-256/512); SASL passwords live in Secret Storage only.

@@ -87,9 +87,14 @@ export function buildConnectionConfig(profile: KafkaProfileDraft, password: stri
   };
 }
 
+function errorCode(error: unknown): string {
+  const cause = error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause : undefined;
+  return cause?.code ?? '';
+}
+
 export function describeKafkaError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (/ECONNREFUSED|ENOTFOUND/.test(message)) {
+  if (/ECONNREFUSED|ENOTFOUND/.test(`${message} ${errorCode(error)}`)) {
     return 'Cannot connect to Kafka broker. Please verify the broker address is correct and the broker is running.';
   }
   if (/timeout/i.test(message)) {

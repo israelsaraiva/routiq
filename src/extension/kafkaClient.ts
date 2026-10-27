@@ -38,6 +38,26 @@ export type KafkaClientFactory = (config: KafkaConnectionConfig, clientId: strin
 
 const SESSION_TIMEOUT_MS = 30000;
 const HEARTBEAT_INTERVAL_MS = 3000;
+const TOPIC_CREATION_ATTEMPTS = 5;
+const TOPIC_CREATION_DELAY_MS = 500;
+const UNKNOWN_TOPIC_ERROR_TYPE = 'UNKNOWN_TOPIC_OR_PARTITION';
+
+function isUnknownTopicError(error: unknown): boolean {
+  return (error as { type?: string } | null)?.type === UNKNOWN_TOPIC_ERROR_TYPE;
+}
+
+export async function retryWhileTopicIsCreated(operation: () => Promise<void>, attempts = TOPIC_CREATION_ATTEMPTS, delayMs = TOPIC_CREATION_DELAY_MS): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= attempts || !isUnknownTopicError(error)) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
 
 function toKafkaConfig(config: KafkaConnectionConfig, clientId: string, timeoutMs: number): KafkaConfig {
   const { sasl } = config;
@@ -55,7 +75,7 @@ function toKafkaConfig(config: KafkaConnectionConfig, clientId: string, timeoutM
 function wrapConsumer(consumer: Consumer): KafkaConsumerLike {
   return {
     connect: () => consumer.connect(),
-    subscribe: (subscription) => consumer.subscribe(subscription),
+    subscribe: (subscription) => retryWhileTopicIsCreated(() => consumer.subscribe(subscription)),
     run: ({ eachMessage }) => consumer.run({ eachMessage: ({ topic, partition, message }) => eachMessage({ topic, partition, message }) }),
     stop: () => consumer.stop(),
     disconnect: () => consumer.disconnect(),

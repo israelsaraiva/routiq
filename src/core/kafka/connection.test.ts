@@ -25,6 +25,7 @@ describe('helpers', () => {
   it('maps common errors', () => {
     expect(describeKafkaError(new Error('connect ECONNREFUSED'))).toContain('Cannot connect');
     expect(describeKafkaError(new Error('Connection timeout'))).toContain('timeout');
+    expect(describeKafkaError(new Error('Connection error: ', { cause: { code: 'ECONNREFUSED' } }))).toContain('Cannot connect');
     expect(describeKafkaError(new Error('other'))).toBe('other');
   });
 
