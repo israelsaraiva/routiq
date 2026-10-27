@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import { CollectionFileStore } from '../core/collectionFiles';
+import { SortDirection, appendCollection, moveCollection, sortCollections, withSequentialOrder } from '../core/collectionOrder';
 import {
   Destination, collectRequestIds, findEntry, findFolder, findRequest, insertAfterEntry, insertEntry, moveEntry, removeEntry, renameEntry, replaceRequest,
 } from '../core/collectionTree';
+import { EntrySortMode, sortFolderItems } from '../core/entrySorting';
 import { applyEnvironmentsDraft, sanitizeActiveEnvironmentId } from '../core/environments';
 import { cloneCollectionWithNewIds, cloneEntryWithNewIds, createCollection, createFolder, createRequest } from '../core/factories';
+import { NestResult, PromoteResult, promoteFolder } from '../core/restructure';
 import { applyVariableChanges } from '../core/scriptFlow';
 import { serializeCollection } from '../core/serialization';
 import { Collection, EnvironmentsDraft, FolderModel, RequestKind, RequestModel } from '../shared/types';
@@ -94,10 +97,7 @@ export class Storage implements vscode.Disposable {
   }
 
   addCollection(name: string): Collection {
-    const collection = createCollection(name);
-    this.collections.push(collection);
-    this.commit(collection);
-    return collection;
+    return this.appendNewCollection(createCollection(name));
   }
 
   renameCollection(collectionId: string, name: string): void {
@@ -119,9 +119,7 @@ export class Storage implements vscode.Disposable {
       return undefined;
     }
     const copy = { ...cloneCollectionWithNewIds(source), name: `${source.name} copy` };
-    this.collections.push(copy);
-    this.commit(copy);
-    return copy;
+    return this.appendNewCollection(copy);
   }
 
   applyEnvironmentsDraft(collectionId: string, draft: EnvironmentsDraft): void {
@@ -190,20 +188,41 @@ export class Storage implements vscode.Disposable {
   }
 
   moveEntry(entryId: string, destination: Destination): void {
-    const moved = moveEntry(this.collections, entryId, destination);
-    if (moved === this.collections) {
-      return;
+    this.replaceCollections(moveEntry(this.collections, entryId, destination));
+  }
+
+  sortEntries(collectionId: string, folderId: string | undefined, mode: EntrySortMode, recursive: boolean): void {
+    this.replaceCollection(collectionId, (collection) => ({ ...collection, items: sortFolderItems(collection.items, folderId, mode, recursive) }));
+  }
+
+  moveCollection(collectionId: string, beforeCollectionId?: string): void {
+    this.replaceCollections(moveCollection(this.collections, collectionId, beforeCollectionId));
+  }
+
+  sortCollections(direction: SortDirection): void {
+    this.replaceCollections(sortCollections(this.collections, direction));
+  }
+
+  applyNest(result: NestResult): void {
+    this.replaceCollections(result.collections);
+    this.enqueueWrite(() => this.fileStore.remove(result.sourceCollectionId));
+    this.collectionDeletedEmitter.fire(result.sourceCollectionId);
+  }
+
+  promoteFolder(folderId: string): Collection | undefined {
+    const result: PromoteResult | undefined = promoteFolder(this.collections, folderId);
+    if (!result) {
+      return undefined;
     }
-    const changed = moved.filter((collection, index) => collection !== this.collections[index]);
-    this.collections = moved;
-    changed.forEach((collection) => this.enqueueWrite(() => this.fileStore.save(collection)));
-    this.changeEmitter.fire();
+    this.replaceCollections(withSequentialOrder(result.collections));
+    return this.getCollection(result.promoted.id);
   }
 
   importCollections(imported: Collection[]): void {
     for (const collection of imported) {
-      this.collections.push(collection);
-      this.enqueueWrite(() => this.fileStore.save(collection));
+      this.collections = appendCollection(this.collections, collection);
+      const stored = this.collections[this.collections.length - 1];
+      this.enqueueWrite(() => this.fileStore.save(stored));
     }
     this.changeEmitter.fire();
   }
@@ -216,6 +235,23 @@ export class Storage implements vscode.Disposable {
     clearTimeout(this.reloadTimer);
     this.watcher?.dispose();
     this.disposables.forEach((disposable) => disposable.dispose());
+  }
+
+  private appendNewCollection(collection: Collection): Collection {
+    this.collections = appendCollection(this.collections, collection);
+    const stored = this.collections[this.collections.length - 1];
+    this.commit(stored);
+    return stored;
+  }
+
+  private replaceCollections(updated: Collection[]): void {
+    if (updated === this.collections) {
+      return;
+    }
+    const previous = new Set(this.collections);
+    this.collections = updated;
+    updated.filter((collection) => !previous.has(collection)).forEach((collection) => this.enqueueWrite(() => this.fileStore.save(collection)));
+    this.changeEmitter.fire();
   }
 
   private addEntry(collectionId: string, entry: RequestModel | FolderModel, folderId?: string): boolean {

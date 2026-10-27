@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7
+
+- Sort collections and requests: right-click a collection or folder → **Sort** → A→Z, Z→A or by method (GET, POST, PUT, PATCH, DELETE, others), with recursive variants; **Sort Collections A→Z / Z→A** in the view menu. Sorting is saved, and manual order still works afterwards.
+- Drag and drop now reorders: dropping on a request places the item before or after it depending on the drag direction, also across folders and collections. Collections can be reordered too (**Move Collection Up/Down**). The order is stored in the collection files (`order`), so it survives reloads, export/import and git sharing; files without it keep their current order.
+- Subcollections: drag a collection onto another collection or folder (or **Move to…**) to turn it into a folder; variables and environments are merged without overwriting, secrets follow, and a warning lists whatever could not be carried over (active environment selection, cookies). **Promote Folder to Collection** reverses it.
+- New **Move to…** command for collections, folders and requests.
+
 ## 0.1.6
 
 - `{{variable}}` placeholders are now highlighted in every field where variables are substituted (URL, params, headers, form/multipart, body editors, auth fields, subprotocols, environment values): green when the variable exists (environment, collection, dynamic or secret), orange with a wavy underline when it is unresolved. Hover to see the resolved value and scope; secret values are never shown.

@@ -3,6 +3,7 @@ import { Collection, EnvironmentsDraft } from '../shared/types';
 import {
   SecretLookup, collectionSecretPrefix, extractDraftSecrets, hydrateCollection, hydrateEnvironments, listSecretRefs, secretStorageKey, staleSecretRefs,
 } from '../core/secrets';
+import { SecretMove } from '../core/restructure';
 
 export class SecretVault implements vscode.Disposable {
   private readonly cache = new Map<string, string>();
@@ -35,6 +36,15 @@ export class SecretVault implements vscode.Disposable {
     }
     for (const ref of staleSecretRefs(listSecretRefs(collection), listSecretRefs(draft))) {
       await this.remove(secretStorageKey(collection.id, ref));
+    }
+  }
+
+  async moveSecrets(fromCollectionId: string, toCollectionId: string, moves: SecretMove[]): Promise<void> {
+    for (const { from, to } of moves) {
+      const sourceKey = secretStorageKey(fromCollectionId, from);
+      await this.fetch(sourceKey);
+      const value = this.cache.get(sourceKey);
+      value !== undefined && (await this.store(secretStorageKey(toCollectionId, to), value));
     }
   }
 

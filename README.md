@@ -7,7 +7,7 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 ## Features
 
 - **Requests**: params, headers, bodies (JSON, XML, text, form, multipart, binary, GraphQL) and auth (bearer, basic, API key, OAuth 2.0, Digest).
-- **Collections and folders**, one JSON file each, optionally stored in your workspace (`.routiq`) and committed to git.
+- **Collections and folders** with drag-and-drop reordering, sorting (A→Z, Z→A, by method) and subcollections, one JSON file each, optionally stored in your workspace (`.routiq`) and committed to git.
 - **Environments and variables**, including secret variables, with live `{{variable}}` highlighting (defined vs unresolved), hover values and autocomplete.
 - **GraphQL** with schema introspection and completion, **Convert to GraphQL / HTTP** from the request toolbar **…** menu, **SSE**, **WebSocket** and **gRPC**.
 - **Scripts and tests**: pre-request and post-response scripts, plus a collection/folder runner.
@@ -71,7 +71,14 @@ The request editor and response share a resizable split: drag the divider (or fo
 
 ### Folders
 
-A collection holds requests and nested folders (any depth). Right-click a collection or folder → **New Folder** / **New Request**; folders can be renamed, duplicated (with their contents) and deleted. **Drag and drop** in the tree moves requests and folders between folders and collections: dropping on a folder or collection appends, dropping on a request inserts before it (this is how you reorder). A folder can't be moved into itself or its own subfolders.
+A collection holds requests and nested folders (any depth). Right-click a collection or folder → **New Folder** / **New Request**; folders can be renamed, duplicated (with their contents) and deleted. **Drag and drop** in the tree moves requests and folders between folders and collections. Dropping on a collection or folder appends to it; dropping on a request places the dragged item before it when moving up and after it when moving down (VS Code does not expose the exact drop position). Dropping a folder on a sibling folder reorders them instead of nesting. A folder can't be moved into itself or its own subfolders. Order is stored in the collection file, so it is shared when the storage folder is committed.
+
+### Sorting and moving
+
+- **Sort** (collection or folder context menu → **Sort**): **A→Z**, **Z→A** or **by Method** (GET, POST, PUT, PATCH, DELETE, others, then name), each also as a **(Recursive)** variant. Folders come first, comparison is natural and case-insensitive. Sorting is a one-time reorder that is saved; you can keep dragging afterwards.
+- **Sort Collections A→Z / Z→A** are in the view title **…** menu. Collections have **Move Collection Up/Down** in their context menu; dropping a collection on the empty area of the tree moves it to the end.
+- **Subcollections**: drag a collection onto another collection or folder (or use **Move to…**) to turn it into a folder there. Its requests and folders move along; its base variables and environments are merged into the target without overwriting existing values (environments match by name), secret values follow into the target, and anything that could not be merged is listed in a warning. The active environment selection and the old collection's cookies are not carried over. **Promote Folder to Collection** (context menu, **Move to…** → *New top-level collection*, or dragging a folder to the empty area) does the reverse.
+- **Move to…** (collection, folder and request context menu) is the keyboard alternative to drag and drop.
 
 ### Variables and environments
 

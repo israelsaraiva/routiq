@@ -2,7 +2,7 @@
   "name": "routiq",
   "displayName": "Routiq",
   "description": "A lightweight Insomnia/Postman-like REST client inside VS Code.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",
@@ -128,7 +128,12 @@
         },
         "routiq.curlShell": {
           "type": "string",
-          "enum": ["auto", "bash", "powershell", "cmd"],
+          "enum": [
+            "auto",
+            "bash",
+            "powershell",
+            "cmd"
+          ],
           "default": "auto",
           "description": "Shell syntax used by Copy as cURL. auto uses PowerShell on Windows and bash elsewhere. PowerShell and cmd output curl.exe with the right quoting and line continuations."
         },
@@ -147,6 +152,66 @@
       }
     },
     "commands": [
+      {
+        "command": "routiq.moveTo",
+        "title": "Move to…",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.promoteFolder",
+        "title": "Promote Folder to Collection",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.moveCollectionUp",
+        "title": "Move Collection Up",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.moveCollectionDown",
+        "title": "Move Collection Down",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortAscending",
+        "title": "Sort A→Z",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortDescending",
+        "title": "Sort Z→A",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortByMethod",
+        "title": "Sort by Method",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortAscendingRecursive",
+        "title": "Sort A→Z (Recursive)",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortDescendingRecursive",
+        "title": "Sort Z→A (Recursive)",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortByMethodRecursive",
+        "title": "Sort by Method (Recursive)",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortCollectionsAscending",
+        "title": "Sort Collections A→Z",
+        "category": "Routiq"
+      },
+      {
+        "command": "routiq.sortCollectionsDescending",
+        "title": "Sort Collections Z→A",
+        "category": "Routiq"
+      },
       {
         "command": "routiq.clearHistory",
         "title": "Clear Request History",
@@ -280,8 +345,50 @@
         "icon": "$(info)"
       }
     ],
+    "submenus": [
+      {
+        "id": "routiq.sortMenu",
+        "label": "Sort"
+      }
+    ],
     "menus": {
+      "routiq.sortMenu": [
+        {
+          "command": "routiq.sortAscending",
+          "group": "1_level@0"
+        },
+        {
+          "command": "routiq.sortDescending",
+          "group": "1_level@1"
+        },
+        {
+          "command": "routiq.sortByMethod",
+          "group": "1_level@2"
+        },
+        {
+          "command": "routiq.sortAscendingRecursive",
+          "group": "2_recursive@0"
+        },
+        {
+          "command": "routiq.sortDescendingRecursive",
+          "group": "2_recursive@1"
+        },
+        {
+          "command": "routiq.sortByMethodRecursive",
+          "group": "2_recursive@2"
+        }
+      ],
       "view/title": [
+        {
+          "command": "routiq.sortCollectionsAscending",
+          "when": "view == routiq.collections",
+          "group": "2_sort@1"
+        },
+        {
+          "command": "routiq.sortCollectionsDescending",
+          "when": "view == routiq.collections",
+          "group": "2_sort@2"
+        },
         {
           "command": "routiq.newCollection",
           "when": "view == routiq.collections",
@@ -334,6 +441,31 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "routiq.moveTo",
+          "when": "viewItem =~ /^(collection|folder|request)$/",
+          "group": "3_manage@4"
+        },
+        {
+          "command": "routiq.promoteFolder",
+          "when": "viewItem == folder",
+          "group": "3_manage@5"
+        },
+        {
+          "command": "routiq.moveCollectionUp",
+          "when": "viewItem == collection",
+          "group": "3_manage@6"
+        },
+        {
+          "command": "routiq.moveCollectionDown",
+          "when": "viewItem == collection",
+          "group": "3_manage@7"
+        },
+        {
+          "submenu": "routiq.sortMenu",
+          "when": "viewItem =~ /^(collection|folder)$/",
+          "group": "3_manage@0"
+        },
         {
           "command": "routiq.openRequest",
           "when": "viewItem == request",
@@ -426,6 +558,46 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "routiq.moveTo",
+          "when": "false"
+        },
+        {
+          "command": "routiq.promoteFolder",
+          "when": "false"
+        },
+        {
+          "command": "routiq.moveCollectionUp",
+          "when": "false"
+        },
+        {
+          "command": "routiq.moveCollectionDown",
+          "when": "false"
+        },
+        {
+          "command": "routiq.sortAscending",
+          "when": "false"
+        },
+        {
+          "command": "routiq.sortDescending",
+          "when": "false"
+        },
+        {
+          "command": "routiq.sortByMethod",
+          "when": "false"
+        },
+        {
+          "command": "routiq.sortAscendingRecursive",
+          "when": "false"
+        },
+        {
+          "command": "routiq.sortDescendingRecursive",
+          "when": "false"
+        },
+        {
+          "command": "routiq.sortByMethodRecursive",
+          "when": "false"
+        },
         {
           "command": "routiq.openRequest",
           "when": "false"

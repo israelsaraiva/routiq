@@ -6,6 +6,7 @@ import { Collection, CollectionEntry, FolderModel, RequestModel } from '../../..
 import { SecretVault } from '../../../extension/secretVault';
 import { InMemorySecrets } from '../inMemorySecrets';
 import { Storage } from '../../../extension/storage';
+import { nestCollection } from '../../../core/restructure';
 import { buildExportFile } from '../../../core/postman';
 import { buildPostmanExport } from '../../../core/postmanExport';
 import { importFromText } from '../../../extension/importExport';
@@ -154,6 +155,49 @@ describe('Storage', () => {
       const imported = harness.storage.getCollections()[harness.storage.getCollections().length - 1];
       assert.strictEqual(imported.name, original.name);
       assert.deepStrictEqual(shapeOf(imported.items), shapeOf(original.items));
+    });
+  });
+  describe('ordering and restructuring', () => {
+    async function reloadedNames(): Promise<string[]> {
+      await harness.storage.flush();
+      const reloaded = new Storage(harness.globalStorage);
+      disposables.push(reloaded);
+      await reloaded.init();
+      return reloaded.getCollections().map((collection) => collection.name);
+    }
+
+    it('persists collection order across reloads', async () => {
+      const first = harness.storage.addCollection('First');
+      harness.storage.addCollection('Second');
+      harness.storage.moveCollection(first.id);
+      assert.deepStrictEqual(await reloadedNames(), ['Second', 'First']);
+    });
+
+    it('persists sorted requests', async () => {
+      const collection = harness.storage.addCollection('Sorted');
+      harness.storage.addRequest(collection.id, 'b');
+      harness.storage.addRequest(collection.id, 'a');
+      harness.storage.sortEntries(collection.id, undefined, 'name-asc', false);
+      await harness.storage.flush();
+      assert.deepStrictEqual(harness.storage.getCollection(collection.id)?.items.map((entry) => entry.name), ['a', 'b']);
+    });
+
+    it('nests a collection as a folder and promotes it back', async () => {
+      const target = harness.storage.addCollection('Target');
+      const source = harness.storage.addCollection('Source');
+      harness.storage.addRequest(source.id, 'Ping');
+      const result = nestCollection(harness.storage.getCollections(), source.id, { collectionId: target.id });
+      assert.ok(result);
+      harness.storage.applyNest(result);
+      await harness.storage.flush();
+      assert.strictEqual(collectionFiles(harness.directory).length, 1);
+      const nested = harness.storage.getCollection(target.id)?.items[0] as FolderModel;
+      assert.strictEqual(nested.name, 'Source');
+
+      const promoted = harness.storage.promoteFolder(nested.id);
+      await harness.storage.flush();
+      assert.deepStrictEqual(promoted?.items.map((entry) => entry.name), ['Ping']);
+      assert.strictEqual(collectionFiles(harness.directory).length, 2);
     });
   });
 });

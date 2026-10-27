@@ -128,6 +128,7 @@ export interface Collection {
   variables: KeyValue[];
   environments: Environment[];
   activeEnvironmentId?: string;
+  order?: number;
 }
 
 export const EXPORT_FORMAT_VERSION = 2;

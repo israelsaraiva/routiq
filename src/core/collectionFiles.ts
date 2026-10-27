@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { Collection } from '../shared/types';
+import { orderCollections } from './collectionOrder';
 import { parseOwnCollection } from './collectionFormat';
 import { generateId } from './ids';
 import { serializeCollection, slugify } from './serialization';
@@ -25,7 +26,7 @@ export class CollectionFileStore {
     this.fileNamesById.clear();
     const fileNames = (await fs.readdir(this.directory)).filter(isCollectionFile).sort();
     const loaded = await Promise.all(fileNames.map((fileName) => this.loadFile(fileName)));
-    return loaded.filter((collection): collection is Collection => collection !== undefined);
+    return orderCollections(loaded.filter((collection): collection is Collection => collection !== undefined));
   }
 
   async save(collection: Collection): Promise<void> {

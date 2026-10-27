@@ -1,8 +1,11 @@
 import * as vscode from 'vscode';
 import { countRequests, findFolder, findParentFolderId, findRequest, isFolder, locateEntry, Destination } from '../core/collectionTree';
+import { NestDestination } from '../core/restructure';
+import { destinationOnEntry } from '../core/dropPlacement';
 import { filterEntries } from '../core/requestSearch';
 import { Collection, CollectionEntry, FolderModel, RequestModel } from '../shared/types';
 import { describeRequest, requestKindOf } from '../core/requestKinds';
+import { CollectionRestructurer } from './restructurer';
 import { Storage } from './storage';
 
 const TREE_MIME_TYPE = 'application/vnd.code.tree.routiq.collections';
@@ -73,6 +76,11 @@ export class RequestItem extends vscode.TreeItem {
 }
 
 export type TreeNode = CollectionItem | FolderItem | RequestItem;
+interface DragPayload {
+  collectionIds: string[];
+  entryIds: string[];
+}
+
 type MovableNode = FolderItem | RequestItem;
 
 function isMovable(node: TreeNode): node is MovableNode {
@@ -95,7 +103,7 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<TreeNode
 
   private filterQuery = '';
 
-  constructor(private readonly storage: Storage) {
+  constructor(private readonly storage: Storage, private readonly restructurer: CollectionRestructurer) {
     storage.onDidChange(() => this.changeEmitter.fire());
   }
 
@@ -157,31 +165,58 @@ export class CollectionsTreeProvider implements vscode.TreeDataProvider<TreeNode
   }
 
   handleDrag(source: readonly TreeNode[], dataTransfer: vscode.DataTransfer): void {
+    const collectionIds = source.filter((node): node is CollectionItem => node instanceof CollectionItem).map((node) => node.collection.id);
     const entryIds = source.filter(isMovable).map(entryIdOf);
-    if (entryIds.length > 0) {
-      dataTransfer.set(TREE_MIME_TYPE, new vscode.DataTransferItem(entryIds));
+    const payload: DragPayload = collectionIds.length > 0 ? { collectionIds, entryIds: [] } : { collectionIds: [], entryIds };
+    if (payload.collectionIds.length > 0 || payload.entryIds.length > 0) {
+      dataTransfer.set(TREE_MIME_TYPE, new vscode.DataTransferItem(payload));
     }
   }
 
   handleDrop(target: TreeNode | undefined, dataTransfer: vscode.DataTransfer): void {
-    const entryIds: unknown = dataTransfer.get(TREE_MIME_TYPE)?.value;
-    const destination = target && this.destinationFor(target);
-    if (!destination || !Array.isArray(entryIds)) {
-      return;
-    }
-    for (const entryId of entryIds) {
-      this.storage.moveEntry(String(entryId), destination);
+    const payload = dataTransfer.get(TREE_MIME_TYPE)?.value as Partial<DragPayload> | undefined;
+    if (Array.isArray(payload?.collectionIds) && payload.collectionIds.length > 0) {
+      this.dropCollections(payload.collectionIds.map(String), target);
+    } else if (Array.isArray(payload?.entryIds)) {
+      this.dropEntries(payload.entryIds.map(String), target);
     }
   }
 
-  private destinationFor(target: TreeNode): Destination | undefined {
+  private dropCollections(collectionIds: string[], target: TreeNode | undefined): void {
+    if (!target) {
+      collectionIds.forEach((collectionId) => this.storage.moveCollection(collectionId));
+      return;
+    }
+    const destination = target instanceof RequestItem ? undefined : this.nestDestination(target);
+    destination && void this.nestSequentially(collectionIds, destination);
+  }
+
+  private async nestSequentially(collectionIds: string[], destination: NestDestination): Promise<void> {
+    for (const collectionId of collectionIds) {
+      await this.restructurer.nestCollection(collectionId, destination);
+    }
+  }
+
+  private nestDestination(target: CollectionItem | FolderItem): NestDestination {
+    return target instanceof CollectionItem ? { collectionId: target.collection.id } : { collectionId: target.collectionId, folderId: target.folder.id };
+  }
+
+  private dropEntries(entryIds: string[], target: TreeNode | undefined): void {
+    if (!target) {
+      entryIds.filter((entryId) => this.storage.findFolder(entryId)).forEach((folderId) => this.restructurer.promoteFolder(folderId));
+      return;
+    }
+    const collections = this.storage.getCollections();
+    const destinations = entryIds.map((entryId) => ({ entryId, destination: this.destinationFor(collections, entryId, target) }));
+    for (const { entryId, destination } of destinations) {
+      destination && this.storage.moveEntry(entryId, destination);
+    }
+  }
+
+  private destinationFor(collections: Collection[], entryId: string, target: TreeNode): Destination | undefined {
     if (target instanceof CollectionItem) {
       return { collectionId: target.collection.id };
     }
-    if (target instanceof FolderItem) {
-      return { collectionId: target.collectionId, folderId: target.folder.id };
-    }
-    const location = locateEntry(this.storage.getCollections(), target.request.id);
-    return location && { collectionId: location.collectionId, folderId: location.parentFolderId, beforeEntryId: target.request.id };
+    return destinationOnEntry(collections, entryId, target instanceof FolderItem ? target.folder : target.request);
   }
 }

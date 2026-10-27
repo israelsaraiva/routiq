@@ -96,5 +96,8 @@ export function parseOwnCollection(source: Json, resolveId: IdResolver): Collect
   if (activeMatch) {
     collection.activeEnvironmentId = activeMatch.environment.id;
   }
+  if (typeof source.order === 'number' && Number.isFinite(source.order)) {
+    collection.order = source.order;
+  }
   return collection;
 }

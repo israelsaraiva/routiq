@@ -2,10 +2,13 @@ import * as vscode from 'vscode';
 import { CollectionRunner } from './collectionRunner';
 import { ScriptConsent } from './scriptConsent';
 import { CollectionItem, CollectionsTreeProvider, FolderItem, RequestItem, TreeNode } from './collectionsTree';
+import { CollectionRestructurer } from './restructurer';
 import { CookieStore } from './cookieStore';
 import { manageCookies } from './cookieCommands';
 import { copyStoredRequestAsCurl } from './curlCommands';
 import { collectionIdFromNode, pickCollectionId, pickDestination } from './destinationPicker';
+import { EntrySortMode } from '../core/entrySorting';
+import { pickMoveDestination } from './moveDestinationPicker';
 import { EnvironmentPanels } from './environmentPanels';
 import { EnvironmentStatusBar, switchEnvironment } from './environmentSwitcher';
 import { chooseImportSource, exportCollectionAsPostman, exportCollections, importCurl, importFromClipboard } from './importExport';
@@ -35,6 +38,7 @@ interface Services {
   environmentPanels: EnvironmentPanels;
   statusBar: EnvironmentStatusBar;
   vault: SecretVault;
+  restructurer: CollectionRestructurer;
 }
 
 function registerEntryCommands(register: Registrar, { storage, panels }: Services): void {
@@ -102,6 +106,62 @@ function registerEntryCommands(register: Registrar, { storage, panels }: Service
   register('routiq.openRequest', (node) => {
     if (node instanceof RequestItem) {
       panels.open(node.request.id);
+    }
+  });
+}
+
+function sortNode(storage: Storage, node: unknown, mode: EntrySortMode, recursive: boolean): void {
+  if (node instanceof CollectionItem) {
+    storage.sortEntries(node.collection.id, undefined, mode, recursive);
+  } else if (node instanceof FolderItem) {
+    storage.sortEntries(node.collectionId, node.folder.id, mode, recursive);
+  }
+}
+
+function registerSortCommands(register: Registrar, { storage }: Services): void {
+  register('routiq.sortAscending', (node) => sortNode(storage, node, 'name-asc', false));
+  register('routiq.sortDescending', (node) => sortNode(storage, node, 'name-desc', false));
+  register('routiq.sortByMethod', (node) => sortNode(storage, node, 'method', false));
+  register('routiq.sortAscendingRecursive', (node) => sortNode(storage, node, 'name-asc', true));
+  register('routiq.sortDescendingRecursive', (node) => sortNode(storage, node, 'name-desc', true));
+  register('routiq.sortByMethodRecursive', (node) => sortNode(storage, node, 'method', true));
+  register('routiq.sortCollectionsAscending', () => storage.sortCollections('asc'));
+  register('routiq.sortCollectionsDescending', () => storage.sortCollections('desc'));
+}
+
+function registerMoveCommands(register: Registrar, { storage, restructurer }: Services): void {
+  register('routiq.moveTo', async (node) => {
+    if (node instanceof CollectionItem) {
+      const destination = await pickMoveDestination(storage, node);
+      destination && !destination.promote && (await restructurer.nestCollection(node.collection.id, destination));
+    } else if (node instanceof FolderItem || node instanceof RequestItem) {
+      const entryId = node instanceof FolderItem ? node.folder.id : node.request.id;
+      const destination = await pickMoveDestination(storage, node);
+      if (destination?.promote) {
+        restructurer.promoteFolder(entryId);
+      } else if (destination) {
+        storage.moveEntry(entryId, destination);
+      }
+    }
+  });
+
+  register('routiq.promoteFolder', (node) => {
+    node instanceof FolderItem && restructurer.promoteFolder(node.folder.id);
+  });
+
+  register('routiq.moveCollectionUp', (node) => {
+    if (node instanceof CollectionItem) {
+      const collections = storage.getCollections();
+      const index = collections.findIndex((collection) => collection.id === node.collection.id);
+      index > 0 && storage.moveCollection(node.collection.id, collections[index - 1].id);
+    }
+  });
+
+  register('routiq.moveCollectionDown', (node) => {
+    if (node instanceof CollectionItem) {
+      const collections = storage.getCollections();
+      const index = collections.findIndex((collection) => collection.id === node.collection.id);
+      index !== -1 && index < collections.length - 1 && storage.moveCollection(node.collection.id, collections[index + 2]?.id);
     }
   });
 }
@@ -177,7 +237,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
   const environmentPanels = new EnvironmentPanels(context.extensionUri, storage, vault);
   const statusBar = new EnvironmentStatusBar(storage);
   const infoPanels = new InfoPanels(context.extension, storage);
-  const tree = new CollectionsTreeProvider(storage);
+  const restructurer = new CollectionRestructurer(storage, vault);
+  const tree = new CollectionsTreeProvider(storage, restructurer);
   const treeView = vscode.window.createTreeView('routiq.collections', {
     treeDataProvider: tree,
     dragAndDropController: tree,
@@ -204,9 +265,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
     treeView.onDidChangeSelection(({ selection }) => focusSelectedCollection(selection, statusBar)),
   );
 
-  const services: Services = { storage, panels, environmentPanels, statusBar, vault };
+  const services: Services = { storage, panels, environmentPanels, statusBar, vault, restructurer };
   const register = createRegistrar(context);
   registerEntryCommands(register, services);
+  registerSortCommands(register, services);
+  registerMoveCommands(register, services);
   registerImportExportCommands(register, services);
   registerEnvironmentCommands(register, services);
   const treeFilter = new TreeFilter(tree, treeView);

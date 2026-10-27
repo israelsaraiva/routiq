@@ -100,6 +100,7 @@ export function orderCollection(collection: Collection): Collection {
     variables: orderVariables(collection.variables),
     environments: collection.environments.map(orderEnvironment),
     ...(collection.activeEnvironmentId ? { activeEnvironmentId: collection.activeEnvironmentId } : {}),
+    ...(collection.order === undefined ? {} : { order: collection.order }),
     items: collection.items.map(orderEntry),
   };
 }

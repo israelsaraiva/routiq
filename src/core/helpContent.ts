@@ -40,6 +40,7 @@ const GETTING_STARTED: HelpSection = {
       body: [
         'Right-click a collection or folder and choose New Request. Pick the kind: HTTP, GraphQL, Server-Sent Events, WebSocket or gRPC, then give it a name.',
         'Click a request in the tree to open its editor. Drag and drop in the tree to move or reorder requests and folders.',
+        'Right-click a collection or folder → Sort for A→Z, Z→A or by method (recursive variants too); the order is saved. Use Move to… to move items without dragging, drop a collection on another collection or folder to nest it as a folder, and Promote Folder to Collection to reverse it.',
       ],
     },
     {
