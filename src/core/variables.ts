@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { KeyValue } from '../shared/types';
+import { DYNAMIC_VARIABLE_NAMES, DynamicVariableName } from './dynamicVariableNames';
 
 const PLACEHOLDER_PATTERN = /\{\{\s*([^{}\s]+)\s*\}\}/g;
 
@@ -43,7 +44,7 @@ function randomHex(sources: DynamicSources, length: number): string {
 
 type DynamicGenerator = (sources: DynamicSources) => string;
 
-const DYNAMIC_GENERATORS: Record<string, DynamicGenerator> = {
+const DYNAMIC_GENERATORS: Record<DynamicVariableName, DynamicGenerator> = {
   $uuid: (sources) => sources.uuid(),
   $guid: (sources) => sources.uuid(),
   $timestamp: (sources) => String(Math.floor(sources.nowMs() / 1000)),
@@ -55,10 +56,14 @@ const DYNAMIC_GENERATORS: Record<string, DynamicGenerator> = {
   $randomBoolean: (sources) => String(sources.random() < 0.5),
 };
 
-export const DYNAMIC_VARIABLE_NAMES = Object.keys(DYNAMIC_GENERATORS);
+export { DYNAMIC_VARIABLE_NAMES };
+
+function isDynamicVariableName(name: string): name is DynamicVariableName {
+  return (DYNAMIC_VARIABLE_NAMES as readonly string[]).includes(name);
+}
 
 export function resolveDynamicVariable(name: string, sources: DynamicSources = systemDynamicSources): string | undefined {
-  const generator = Object.prototype.hasOwnProperty.call(DYNAMIC_GENERATORS, name) ? DYNAMIC_GENERATORS[name] : undefined;
+  const generator = isDynamicVariableName(name) ? DYNAMIC_GENERATORS[name] : undefined;
   return generator?.(sources);
 }
 

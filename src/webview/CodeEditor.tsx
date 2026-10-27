@@ -32,6 +32,7 @@ interface CodeEditorProps {
   placeholder?: string;
   ariaLabel?: string;
   compact?: boolean;
+  literal?: boolean;
   onKeyDown?: (event: KeyboardEvent<HTMLElement>) => void;
 }
 
@@ -40,7 +41,7 @@ function lineNumbers(text: string): string {
   return Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
 }
 
-export function CodeEditor({ toolbar, text, onChange, placeholder, ariaLabel, compact, onKeyDown }: CodeEditorProps) {
+export function CodeEditor({ toolbar, text, onChange, placeholder, ariaLabel, compact, literal, onKeyDown }: CodeEditorProps) {
   const gutterRef = useRef<HTMLPreElement>(null);
 
   const syncGutterScroll = (event: UIEvent<HTMLElement>) => {
@@ -58,6 +59,7 @@ export function CodeEditor({ toolbar, text, onChange, placeholder, ariaLabel, co
         </pre>
         <AutocompleteInput
           multiline
+          literal={literal}
           className="code-editor-input"
           spellCheck={false}
           ariaLabel={ariaLabel}

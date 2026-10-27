@@ -47,7 +47,7 @@ export function KeyValueTable({ rows, onChange, keyPlaceholder = 'Key', suggestH
                     onChange={(key) => updateRow(index, { key })}
                   />
                 ) : (
-                  <Input value={row.key} placeholder={keyPlaceholder} onChange={(event) => updateRow(index, { key: event.target.value })} />
+                  <AutocompleteInput value={row.key} placeholder={keyPlaceholder} onChange={(key) => updateRow(index, { key })} />
                 )}
               </TableCell>
               <TableCell className="kv-cell-value">

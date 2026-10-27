@@ -342,6 +342,25 @@ mark.match-active { background: var(--vscode-editor-findMatchBackground); outlin
 .autocomplete { position: relative; min-width: 0; }
 .autocomplete > .ui-input, .autocomplete > .ui-textarea { width: 100%; }
 .autocomplete-block { width: 100%; }
+.autocomplete.has-variables > .ui-input, .autocomplete.has-variables > .ui-textarea { color: transparent; caret-color: var(--vscode-editorCursor-foreground, var(--foreground)); }
+.variable-overlay { position: absolute; z-index: 1; box-sizing: border-box; display: flex; align-items: center; overflow: hidden; pointer-events: none; color: var(--foreground); }
+.autocomplete-block > .variable-overlay { align-items: flex-start; }
+.variable-overlay-measure { color: transparent; }
+.variable-overlay-text { flex: none; min-width: 100%; }
+.variable-token { border-radius: 3px; }
+.variable-defined { color: var(--vscode-charts-green, #3fb950); background: color-mix(in srgb, var(--vscode-charts-green, #3fb950) 16%, transparent); }
+.variable-undefined { color: var(--vscode-charts-orange, #d18616); background: color-mix(in srgb, var(--vscode-charts-orange, #d18616) 16%, transparent); text-decoration: underline wavy; text-underline-offset: 2px; }
+.variable-tooltip { position: absolute; z-index: var(--layer-popover); max-width: 320px; padding: 3px 8px; overflow-wrap: anywhere; pointer-events: none; font-size: 0.9em; color: var(--vscode-editorHoverWidget-foreground, var(--popover-foreground)); background: var(--vscode-editorHoverWidget-background, var(--popover)); border: 1px solid var(--vscode-editorHoverWidget-border, var(--border)); border-radius: var(--radius); box-shadow: 0 2px 8px var(--shadow); }
+.autocomplete .variable-suggestions { min-width: 260px; max-width: none; }
+.autocomplete-block .variable-overlay-text { flex: 1 1 100%; min-width: 0; }
+.variable-suggestions .ui-command-item { align-items: baseline; }
+.variable-option-name { flex: 0 0 auto; }
+.variable-option-preview { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--rq-mono); }
+@media (forced-colors: active) {
+  .variable-defined { color: LinkText; background: none; text-decoration: underline; }
+  .variable-undefined { color: CanvasText; background: none; border-bottom: 2px dashed Highlight; }
+  .autocomplete.has-variables > .ui-input, .autocomplete.has-variables > .ui-textarea { color: transparent; }
+}
 
 .gql-panel { display: flex; flex-direction: column; gap: var(--rq-space-2); }
 .gql-toolbar { display: flex; align-items: center; gap: var(--rq-space-2); }

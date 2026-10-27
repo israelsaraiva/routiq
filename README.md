@@ -8,7 +8,7 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 
 - **Requests**: params, headers, bodies (JSON, XML, text, form, multipart, binary, GraphQL) and auth (bearer, basic, API key, OAuth 2.0, Digest).
 - **Collections and folders**, one JSON file each, optionally stored in your workspace (`.routiq`) and committed to git.
-- **Environments and variables**, including secret variables, with autocomplete.
+- **Environments and variables**, including secret variables, with live `{{variable}}` highlighting (defined vs unresolved), hover values and autocomplete.
 - **GraphQL** with schema introspection and completion, **Convert to GraphQL / HTTP** from the request toolbar **…** menu, **SSE**, **WebSocket** and **gRPC**.
 - **Scripts and tests**: pre-request and post-response scripts, plus a collection/folder runner.
 - **Response viewer**: syntax highlighting, pretty/raw, JSON path filter, search, save to file.
@@ -95,9 +95,11 @@ In the environment editor, click the lock next to a base or environment variable
 - **Search Requests** (`$(search)` button in the view title, or the command palette) opens a quick pick over every request (name, method, URL, collection/folder path) and opens the selected one.
 - **Filter Requests in Tree** (`$(filter)` button) asks for text and fuzzy-filters the tree by request name, method or URL, keeping matching requests, their folders, and folders whose name matches; matching branches are expanded. The active filter is shown in the view message; **Clear Tree Filter** removes it.
 
-### Autocomplete
+### Variable highlighting and autocomplete
 
-In the URL field, header values (and other value fields) and body editors, typing `{{` opens a dropdown of the available variables: the active environment's, base variables and dynamic `$` variables. Use ↑/↓ to move, Enter or Tab to insert, Esc to dismiss. The headers table also suggests common header names as you type.
+`{{name}}` placeholders are coloured wherever variables are substituted: the URL, params, header, form and multipart cells, body editors (JSON, XML, text, GraphQL query and variables, gRPC message), auth fields, WebSocket subprotocols and the environment editor values. Existing variables (environment, collection, dynamic and secret) are green; unresolved ones are orange with a wavy underline. Hover a variable to see its resolved value and scope (secrets show dots, never the value) or `Unresolved variable`.
+
+Typing `{{` (or moving the caret into an unfinished `{{partial`) opens a list at the caret with the active environment's variables, collection variables, dynamic `$` variables and secret names, each with a value preview (masked for secrets) and its scope. Keep typing to filter; use ↑/↓ to move, Enter or Tab (or a click) to insert the variable with its closing `}}`, Esc to dismiss. The list follows the active environment. The headers table also suggests common header names. The WebSocket composer sends text as typed, so it is not highlighted.
 
 ### Authentication
 

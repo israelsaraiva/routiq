@@ -1,9 +1,9 @@
 import { ApiKeyLocation, Auth, OAuth2Auth, OAuth2Grant, RequestModel } from '../shared/types';
+import { AutocompleteInput } from './AutocompleteInput';
 import { BodyEditor } from './BodyEditor';
 import { OptionSelect, toSelectOptions } from './components/OptionSelect';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
 import { KeyValueTable } from './KeyValueTable';
 import { ScriptsEditor } from './ScriptsEditor';
 
@@ -74,14 +74,13 @@ interface AuthFieldProps {
 
 function AuthField({ placeholder, value, onValueChange, secret }: AuthFieldProps) {
   return (
-    <Input
+    <AutocompleteInput
       className="auth-field"
-      type={secret ? 'password' : 'text'}
+      masked={secret}
       placeholder={placeholder}
-      aria-label={placeholder}
-      title={placeholder}
+      ariaLabel={placeholder}
       value={value}
-      onChange={(event) => onValueChange(event.target.value)}
+      onChange={onValueChange}
     />
   );
 }

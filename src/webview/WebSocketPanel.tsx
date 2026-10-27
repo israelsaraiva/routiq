@@ -55,6 +55,7 @@ export function WebSocketPanel({ status, entries, onClear, composerActions, hide
       <div className="composer">
         <CodeEditor
           compact
+          literal
           toolbar={
             <EditorToolbar
               leading={<OptionSelect value={mode} options={COMPOSER_MODES} onValueChange={setMode} ariaLabel="Message format" />}

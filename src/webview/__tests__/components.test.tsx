@@ -119,6 +119,62 @@ describe('AutocompleteInput', () => {
   });
 });
 
+describe('AutocompleteInput variable highlighting', () => {
+  const variables = [
+    { name: 'baseUrl', source: 'environment' as const, value: 'https://api.example.com' },
+    { name: 'token', source: 'base' as const, isSecret: true },
+    { name: '$uuid', source: 'dynamic' as const },
+  ];
+
+  function Harness({ initial }: { initial: string }) {
+    const [value, setValue] = useState(initial);
+    return (
+      <VariableSuggestionsContext.Provider value={variables}>
+        <AutocompleteInput value={value} onChange={setValue} ariaLabel="field" multiline />
+      </VariableSuggestionsContext.Provider>
+    );
+  }
+
+  it('colours defined, secret and dynamic variables apart from unresolved ones', () => {
+    const { container } = render(<Harness initial={'{{baseUrl}}/{{token}}/{{$uuid}}/{{missing}}'} />);
+    const defined = Array.from(container.querySelectorAll('.variable-defined')).map((node) => node.textContent);
+    const undefinedNames = Array.from(container.querySelectorAll('.variable-undefined')).map((node) => node.textContent);
+    expect(defined).toEqual(['{{baseUrl}}', '{{token}}', '{{$uuid}}']);
+    expect(undefinedNames).toEqual(['{{missing}}']);
+  });
+
+  it('does not render a highlight layer for plain text', () => {
+    const { container } = render(<Harness initial="plain text {{unfinished" />);
+    expect(container.querySelector('.variable-overlay')).toBeNull();
+  });
+
+  it('shows scope and masked previews in the suggestion popup and completes the braces on click', () => {
+    const { container } = render(<Harness initial="" />);
+    const field = screen.getByLabelText('field') as HTMLTextAreaElement;
+    fireEvent.change(field, { target: { value: 'x {{', selectionStart: 4 } });
+    const options = screen.getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'baseUrlhttps://api.example.comenvironment',
+      'token••••••collection',
+      '$uuidgenerated on senddynamic',
+    ]);
+    fireEvent.mouseDown(options[1]);
+    expect(field.value).toBe('x {{token}}');
+    expect(container.querySelector('.variable-defined')?.textContent).toBe('{{token}}');
+  });
+
+  it('filters while typing and supports keyboard navigation', () => {
+    render(<Harness initial="" />);
+    const field = screen.getByLabelText('field') as HTMLTextAreaElement;
+    fireEvent.change(field, { target: { value: '{{b', selectionStart: 3 } });
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    fireEvent.change(field, { target: { value: '{{', selectionStart: 2 } });
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    fireEvent.keyDown(field, { key: 'Tab' });
+    expect(field.value).toBe('{{token}}');
+  });
+});
+
 describe('SplitPane', () => {
   it('renders both panes and resizes with the keyboard', () => {
     render(<SplitPane first={<p>request side</p>} second={<p>response side</p>} />);

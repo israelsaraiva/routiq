@@ -16,6 +16,8 @@ import { Button } from './components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
 import { Input } from './components/ui/input';
+import { VariableSuggestionsContext } from './AutocompleteInput';
+import { buildVariableSuggestions } from '../core/variableCatalog';
 import { EnvironmentVariablesTable } from './EnvironmentVariablesTable';
 import { postToHost } from './vscodeApi';
 
@@ -240,7 +242,9 @@ export function EnvironmentsEditor() {
                 : 'Base variables apply to every request. The active environment overrides them. Secret values live in VS Code SecretStorage, not in the collection file.'}
             </div>
           </Alert>
-          <EnvironmentVariablesTable rows={variables} onChange={setVariables} />
+          <VariableSuggestionsContext.Provider value={buildVariableSuggestions(draft.variables, selected?.variables)}>
+            <EnvironmentVariablesTable rows={variables} onChange={setVariables} />
+          </VariableSuggestionsContext.Provider>
         </section>
       </div>
       <Dialog open={renaming !== undefined} onOpenChange={(open) => !open && setRenamingId(undefined)}>

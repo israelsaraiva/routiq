@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Add01Icon, Delete02Icon, File01Icon } from '@hugeicons/core-free-icons';
 import { BodyType, FilePickTarget, HostToWebviewMessage, MultipartField, RequestBody } from '../shared/types';
+import { AutocompleteInput } from './AutocompleteInput';
 import { JsonTextEditor } from './JsonTextEditor';
 import { CodeEditor, EditorToolbar } from './CodeEditor';
 import { Icon } from './Icon';
@@ -8,7 +9,6 @@ import { IconButton } from './components/IconButton';
 import { OptionSelect, SelectOption } from './components/OptionSelect';
 import { Button } from './components/ui/button';
 import { Checkbox } from './components/ui/checkbox';
-import { Input } from './components/ui/input';
 import { Table, TableBody, TableCell, TableRow } from './components/ui/table';
 import { BodyTextEditor } from './BodyTextEditor';
 import { KeyValueTable } from './KeyValueTable';
@@ -65,7 +65,7 @@ function MultipartEditor({ fields, onChange }: { fields: MultipartField[]; onCha
                 />
               </TableCell>
               <TableCell>
-                <Input value={field.key} placeholder="Name" onChange={(event) => updateField(index, { key: event.target.value })} />
+                <AutocompleteInput value={field.key} placeholder="Name" onChange={(key) => updateField(index, { key })} />
               </TableCell>
               <TableCell>
                 <OptionSelect
@@ -76,10 +76,10 @@ function MultipartEditor({ fields, onChange }: { fields: MultipartField[]; onCha
                 />
               </TableCell>
               <TableCell className="kv-cell-value">
-                <Input
+                <AutocompleteInput
                   value={field.value}
                   placeholder={field.kind === 'file' ? 'File path' : 'Value'}
-                  onChange={(event) => updateField(index, { value: event.target.value })}
+                  onChange={(value) => updateField(index, { value })}
                 />
               </TableCell>
               <TableCell className="kv-cell-action">
@@ -103,7 +103,7 @@ function MultipartEditor({ fields, onChange }: { fields: MultipartField[]; onCha
 function BinaryEditor({ filePath, onChange }: { filePath: string; onChange: (filePath: string) => void }) {
   return (
     <div className="binary-row">
-      <Input value={filePath} placeholder="File path" onChange={(event) => onChange(event.target.value)} />
+      <AutocompleteInput value={filePath} placeholder="File path" onChange={onChange} />
       <Button variant="secondary" onClick={() => postToHost({ type: 'pickFile', target: { kind: 'binary' } })}>
         <Icon icon={File01Icon} />
         Choose file

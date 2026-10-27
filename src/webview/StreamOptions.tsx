@@ -1,6 +1,6 @@
 import { RequestKind, RequestModel } from '../shared/types';
+import { AutocompleteInput } from './AutocompleteInput';
 import { LabeledSwitch } from './components/LabeledSwitch';
-import { Input } from './components/ui/input';
 
 interface Props {
   request: RequestModel;
@@ -22,11 +22,12 @@ export function StreamOptions({ request, kind, onChange }: Props) {
   return (
     <div className="response-toolbar">
       {kind === 'websocket' && (
-        <Input
+        <AutocompleteInput
           className="filter-input"
           placeholder="Subprotocols (comma separated)"
+          ariaLabel="Subprotocols"
           value={request.subprotocols ?? ''}
-          onChange={(event) => onChange({ subprotocols: event.target.value })}
+          onChange={(subprotocols) => onChange({ subprotocols })}
         />
       )}
       <LabeledSwitch

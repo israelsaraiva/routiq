@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterHeaderNames, filterVariableSuggestions, findPlaceholderTrigger, insertVariable } from './autocomplete';
+import { filterHeaderNames, filterVariableSuggestions, findPlaceholderTrigger, insertVariable, minimalReplacement } from './autocomplete';
 import { createCollection } from './factories';
 import { collectVariableSuggestions } from './variableSuggestions';
 
@@ -13,10 +13,19 @@ describe('findPlaceholderTrigger', () => {
     expect(findPlaceholderTrigger('{{host}}/x', 10)).toBeUndefined();
     expect(findPlaceholderTrigger('{{a b', 5)).toBeUndefined();
     expect(findPlaceholderTrigger('plain', 5)).toBeUndefined();
+    expect(findPlaceholderTrigger('{{x', 1)).toBeUndefined();
   });
 
   it('uses the nearest placeholder when several exist', () => {
     expect(findPlaceholderTrigger('{{a}}-{{b', 9)).toEqual({ start: 6, query: 'b' });
+  });
+});
+
+describe('minimalReplacement', () => {
+  it('limits the replaced range to the changed middle', () => {
+    expect(minimalReplacement('http://{{ho/x', 'http://{{host}}/x')).toEqual({ start: 11, end: 11, insert: 'st}}' });
+    expect(minimalReplacement('{{ho}}', '{{host}}')).toEqual({ start: 4, end: 4, insert: 'st' });
+    expect(minimalReplacement('same', 'same')).toEqual({ start: 4, end: 4, insert: '' });
   });
 });
 
@@ -54,7 +63,7 @@ describe('collectVariableSuggestions', () => {
       activeEnvironmentId: 'dev',
     };
     const suggestions = collectVariableSuggestions(collection);
-    expect(suggestions.slice(0, 2)).toEqual([{ name: 'host', source: 'environment' }, { name: 'token', source: 'environment' }]);
+    expect(suggestions.slice(0, 2)).toEqual([{ name: 'host', source: 'environment', value: '' }, { name: 'token', source: 'environment', isSecret: true }]);
     expect(suggestions.map((suggestion) => suggestion.name)).toContain('$uuid');
     expect(suggestions.filter((suggestion) => suggestion.name === 'host')).toHaveLength(1);
     expect(suggestions.map((suggestion) => suggestion.name)).not.toContain('off');

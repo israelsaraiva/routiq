@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6
+
+- `{{variable}}` placeholders are now highlighted in every field where variables are substituted (URL, params, headers, form/multipart, body editors, auth fields, subprotocols, environment values): green when the variable exists (environment, collection, dynamic or secret), orange with a wavy underline when it is unresolved. Hover to see the resolved value and scope; secret values are never shown.
+- The `{{` suggestion list now opens at the caret, also when moving into an unfinished `{{partial`, and shows a value preview (masked for secrets) and the scope (environment, collection, dynamic). Fields that lacked suggestions (param keys, multipart, binary path, auth, subprotocols) now have them, and the environment editor suggests from the variables being edited.
+- Inserting a suggestion keeps the editor's undo history.
+- Help page: new Variables section with worked examples.
+
 ## 0.1.5
 
 - Convert an HTTP request to GraphQL (and back) from the **…** menu in the request toolbar. A JSON `{query, variables, operationName}` body fills the Query tab; anything that cannot be carried over is reported in a notice.

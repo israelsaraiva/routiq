@@ -27,7 +27,7 @@ export const COMMON_HEADER_NAMES = [
   'Host',
 ];
 
-const MAX_SUGGESTIONS = 8;
+const MAX_SUGGESTIONS = 12;
 
 export interface PlaceholderTrigger {
   start: number;
@@ -40,6 +40,9 @@ export interface TextEdit {
 }
 
 export function findPlaceholderTrigger(text: string, caret: number): PlaceholderTrigger | undefined {
+  if (caret < 2) {
+    return undefined;
+  }
   const start = text.lastIndexOf('{{', caret - 2);
   if (start === -1) {
     return undefined;
@@ -62,4 +65,23 @@ export function insertVariable(text: string, caret: number, trigger: Placeholder
   const closing = text.startsWith('}}', caret) ? 2 : 0;
   const placeholder = `{{${name}}}`;
   return { text: text.slice(0, trigger.start) + placeholder + text.slice(caret + closing), caret: trigger.start + placeholder.length };
+}
+
+export interface RangeReplacement {
+  start: number;
+  end: number;
+  insert: string;
+}
+
+export function minimalReplacement(before: string, after: string): RangeReplacement {
+  const limit = Math.min(before.length, after.length);
+  let prefix = 0;
+  while (prefix < limit && before[prefix] === after[prefix]) {
+    prefix += 1;
+  }
+  let suffix = 0;
+  while (suffix < limit - prefix && before[before.length - 1 - suffix] === after[after.length - 1 - suffix]) {
+    suffix += 1;
+  }
+  return { start: prefix, end: before.length - suffix, insert: after.slice(prefix, after.length - suffix) };
 }

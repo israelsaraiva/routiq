@@ -234,6 +234,8 @@ export type StreamWebviewMessage =
 export interface VariableSuggestion {
   name: string;
   source: 'base' | 'environment' | 'dynamic';
+  value?: string;
+  isSecret?: boolean;
 }
 
 export type HostToWebviewMessage =

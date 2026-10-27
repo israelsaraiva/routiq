@@ -123,18 +123,63 @@ const REQUESTS_AND_TABS: HelpSection = {
 
 const VARIABLES_AND_ENVIRONMENTS: HelpSection = {
   id: 'variables-and-environments',
-  title: 'Variables & environments',
-  summary: 'Base variables, environments, secrets and dynamic values.',
+  title: 'Variables',
+  summary: 'Define variables, use {{name}} anywhere, and see them highlighted with suggestions.',
   items: [
     {
+      id: 'define-variable',
+      title: 'Define a variable',
+      body: [
+        'Open Manage Environments (collection context menu or the gear in a request panel), pick an environment such as dev, add a row and fill Variable and Value. Rows are enabled by default; untick one to ignore it.',
+        'Variables on the Base tab apply to every request of the collection; variables of the active environment apply on top. Save with Cmd/Ctrl+S.',
+      ],
+      code: ['Variable   Value', 'baseUrl    https://api.example.com', 'userId     42', 'email      ana@example.com'].join('\n'),
+      keywords: ['define', 'create', 'add', 'baseurl', 'environment', 'manage environments'],
+    },
+    {
+      id: 'use-variables',
+      title: 'Use variables in requests',
+      body: [
+        'Write {{name}} in the URL, params, headers, form and multipart fields, binary file path, auth fields, GraphQL query and variables, and in text, JSON, XML and gRPC message bodies. WebSocket composer messages are sent as typed, without substitution. Spaces inside the braces are allowed: {{ baseUrl }}.',
+        'Unknown placeholders are sent untouched, so a typo shows up as a literal {{name}} in the request.',
+      ],
+      code: [
+        'URL           {{baseUrl}}/users/{{userId}}',
+        'Header        Authorization: Bearer {{token}}',
+        'JSON body     {"email": "{{email}}"}',
+        'JSON number   {"id": {{userId}}}',
+        'In a string   {"link": "{{baseUrl}}/users/{{userId}}"}',
+      ].join('\n'),
+      keywords: ['url', 'header', 'authorization', 'bearer', 'json', 'body', 'unquoted', 'string'],
+    },
+    {
+      id: 'graphql-variables',
+      title: 'Variables in GraphQL',
+      body: [
+        'The query text and the Variables JSON are both substituted before sending. Inside the Variables JSON, quote a placeholder to send a string and leave it unquoted to send a number or boolean.',
+      ],
+      code: ['query ($id: ID!) { user(id: $id) { name } }', '', '{"id": "{{userId}}", "notify": {{notify}}}'].join('\n'),
+      keywords: ['graphql', 'query', 'variables'],
+    },
+    {
+      id: 'variable-highlighting',
+      title: 'Highlighting and suggestions',
+      body: [
+        'Every {{name}} you type is coloured: green when the variable exists (environment, collection, dynamic or secret) and orange with a wavy underline when it is unresolved. Hover it to see the resolved value and its scope; secret values are never shown, only dots.',
+        'Type {{ to open the suggestion list at the caret. Keep typing to filter by name. Each entry shows the variable name, a preview of its value (masked for secrets) and its scope: environment, collection or dynamic.',
+        'Use Up/Down to move, Enter or Tab (or a click) to insert the variable and its closing }}, and Esc to dismiss. The list follows the active environment and updates when you switch environments or edit variables.',
+      ],
+      keywords: ['highlight', 'colour', 'color', 'unresolved', 'defined', 'suggestion', 'autocomplete', 'hover', 'tooltip', 'popup'],
+    },
+    {
       id: 'base-vs-environment',
-      title: 'Base variables vs environments',
+      title: 'Precedence: environment vs base variables',
       body: [
         'Use {{name}} in the URL, params, headers, body and auth. Unknown placeholders are left untouched.',
-        'Every collection has base variables and any number of environments (dev, staging, prod…). One environment can be active; its variables override base variables of the same name.',
+        'Every collection has base variables and any number of environments (dev, staging, prod…). One environment can be active; its variables override base variables of the same name. Example: base has baseUrl = https://api.example.com and the active environment dev has baseUrl = http://localhost:3000, so {{baseUrl}} resolves to http://localhost:3000 while dev is active and to https://api.example.com when no environment is active.',
         'Manage Environments (collection context menu or the gear in a request panel) edits them. Switch with the Environment dropdown, the status bar item or "Routiq: Switch Environment". The active environment is stored in the collection file.',
       ],
-      keywords: ['environment', 'switch', 'base'],
+      keywords: ['environment', 'switch', 'base', 'collection', 'override', 'precedence'],
     },
     {
       id: 'secret-variables',
@@ -146,9 +191,18 @@ const VARIABLES_AND_ENVIRONMENTS: HelpSection = {
       keywords: ['secret', 'secretstorage', 'password', 'token'],
     },
     {
+      id: 'set-variable-from-script',
+      title: 'Set a variable from a script',
+      body: [
+        'A post-response script can save a value for later requests with rq.variables.set(name, value). It is written to the active environment (or to the collection variables when none is active), creating the variable if needed, and never overwrites a secret. Later requests and collection runs then resolve {{token}}.',
+      ],
+      code: ["rq.variables.set('token', rq.response.json().token);"].join('\n'),
+      keywords: ['script', 'post-response', 'rq.variables.set', 'token', 'save'],
+    },
+    {
       id: 'dynamic-variables',
       title: 'Dynamic variables',
-      body: ['Generated on every send. Type {{$ in a value field to see them.'],
+      body: ['Generated on every send. Type {{$ in a field to see them; they count as defined, so they are coloured green.'],
       code: [
         '{{$uuid}} / {{$guid}}   random UUID',
         '{{$timestamp}}         Unix time in seconds',
