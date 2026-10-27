@@ -328,7 +328,7 @@ function jsonBody(text: string): RequestBody {
 
 const GRAPHQL_KEYS = new Set(['query', 'variables', 'operationName']);
 
-function parseGraphqlPayload(text: string): RequestBody | undefined {
+export function parseGraphqlPayload(text: string): RequestBody | undefined {
   let payload: unknown;
   try {
     payload = JSON.parse(text);

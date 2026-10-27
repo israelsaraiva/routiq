@@ -104,6 +104,15 @@ const REQUESTS_AND_TABS: HelpSection = {
       keywords: ['history', 'jsonpath', 'find'],
     },
     {
+      id: 'convert-graphql',
+      title: 'Convert between HTTP and GraphQL',
+      body: [
+        'Open the ... menu in the request toolbar and choose Convert to GraphQL (HTTP requests) or Convert to HTTP (GraphQL requests). The change is an ordinary edit: save it or leave it unsaved.',
+        'A JSON body of the shape {query, variables, operationName} fills the Query tab; a text body is used as the query when it looks like GraphQL. Bodies that cannot be carried over (form, multipart, binary, other JSON) are discarded and a notice says so.',
+      ],
+      keywords: ['graphql', 'convert', 'http'],
+    },
+    {
       id: 'copy-as-curl',
       title: 'Copy as cURL',
       body: ['The Copy as cURL button (or the request context menu) substitutes variables, applies auth and copies a ready-to-run command.', 'The syntax follows your OS: PowerShell (curl.exe, backtick continuations) on Windows, bash elsewhere. Override it with the routiq.curlShell setting (auto, bash, powershell, cmd). Pasting Windows cURL (cmd or PowerShell) works too.'],

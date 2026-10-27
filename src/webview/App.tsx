@@ -2,6 +2,7 @@ import { FloppyDiskIcon, Loading03Icon, SentIcon } from '@hugeicons/core-free-ic
 import { useCallback, useEffect, useState } from 'react';
 import { toResponseModel } from '../core/history';
 import { allowsComposer, selectedMethod } from '../core/grpcConfig';
+import { conversionTargetOf } from '../core/requestConversion';
 import { isStreamingRequest, kindLabel, requestKindOf } from '../core/requestKinds';
 import {
   DEFAULT_GRPC_CONFIG, EnvironmentSummary, HistoryEntry, HostToWebviewMessage, KeyValue, RequestKind, RequestModel, ResponseModel, VariableSuggestion,
@@ -28,6 +29,7 @@ import { StreamPanel, streamTitle } from './StreamPanel';
 import { useGrpcServices } from './useGrpcServices';
 import { useStream } from './useStream';
 import { CurlImportNotice, useCurlPaste } from './useCurlPaste';
+import { ConversionNotice, useRequestConversion } from './useRequestConversion';
 import { ResponseViewer } from './ResponseViewer';
 import { postToHost } from './vscodeApi';
 
@@ -124,6 +126,10 @@ export function App() {
     setDirty(true);
   }, []);
   const curlPaste = useCurlPaste(request, applyRequest);
+  const conversion = useRequestConversion(request, applyRequest, (target) => {
+    setTabSelection(target === 'graphql' ? { kind: 'graphql', tab: 'query' } : { kind: 'http', tab: 'body' });
+    setHistoryOpen(false);
+  });
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -181,6 +187,8 @@ export function App() {
         onSelectEnvironment={(environmentId) => postToHost({ type: 'setActiveEnvironment', environmentId })}
         onManageEnvironments={() => postToHost({ type: 'manageEnvironments' })}
         onCopyCurl={() => postToHost({ type: 'copyCurl', request })}
+        conversionTarget={conversionTargetOf(request)}
+        onConvert={conversion.convert}
       />
       <div className="url-bar">
         <div className="request-group">
@@ -219,6 +227,7 @@ export function App() {
           Save
         </Button>
       </div>
+      {conversion.notice && <ConversionNotice notice={conversion.notice} onDismiss={conversion.dismiss} />}
       {curlPaste.notice && <CurlImportNotice notice={curlPaste.notice} onUndo={curlPaste.undo} onDismiss={curlPaste.dismiss} />}
       {kind === 'grpc' ? (
         <GrpcOptions request={request} services={grpcServices.services} loadError={grpcServices.loadError} onChange={change} />

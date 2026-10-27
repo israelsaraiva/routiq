@@ -11,6 +11,7 @@ import { AutocompleteInput, VariableSuggestionsContext } from '../AutocompleteIn
 import { ConnectionBar } from '../ConnectionBar';
 import { KeyValueTable } from '../KeyValueTable';
 import { RequestToolbar } from '../RequestToolbar';
+import { ConversionTarget } from '../../core/requestConversion';
 import { ResponseViewer } from '../ResponseViewer';
 import { SplitPane } from '../SplitPane';
 
@@ -230,6 +231,36 @@ describe('RequestToolbar', () => {
     );
     fireEvent.click(screen.getByText('Copy cURL'));
     expect(onCopyCurl).toHaveBeenCalled();
+  });
+
+  function openActionsMenu(conversionTarget: ConversionTarget | undefined, onConvert = vi.fn()): void {
+    render(
+      <RequestToolbar
+        environments={[]}
+        onSelectEnvironment={vi.fn()}
+        onManageEnvironments={vi.fn()}
+        onCopyCurl={vi.fn()}
+        conversionTarget={conversionTarget}
+        onConvert={onConvert}
+      />,
+    );
+    fireEvent.pointerDown(screen.getByLabelText('More actions'), { button: 0, ctrlKey: false });
+  }
+
+  it.each([
+    ['graphql', 'Convert to GraphQL'],
+    ['http', 'Convert to HTTP'],
+  ] as const)('offers "%s" conversion and calls the handler', (target, label) => {
+    const onConvert = vi.fn();
+    openActionsMenu(target, onConvert);
+    fireEvent.click(screen.getByText(label));
+    expect(onConvert).toHaveBeenCalledWith(target);
+  });
+
+  it('offers no conversion for other request kinds', () => {
+    openActionsMenu(undefined);
+    expect(screen.getByText('Manage environments')).toBeTruthy();
+    expect(screen.queryByText(/Convert to/)).toBeNull();
   });
 });
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Convert an HTTP request to GraphQL (and back) from the **…** menu in the request toolbar. A JSON `{query, variables, operationName}` body fills the Query tab; anything that cannot be carried over is reported in a notice.
+
 ## 0.1.4
 
 - Requests now send default `User-Agent` and `Accept` headers (like Postman) unless you set them, for gateways that reject or stall on header-less requests.

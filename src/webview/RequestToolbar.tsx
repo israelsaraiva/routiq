@@ -1,4 +1,5 @@
-import { Copy01Icon, MoreHorizontalIcon, Settings02Icon } from '@hugeicons/core-free-icons';
+import { ArrowDataTransferHorizontalIcon, Copy01Icon, MoreHorizontalIcon, Settings02Icon } from '@hugeicons/core-free-icons';
+import { ConversionTarget } from '../core/requestConversion';
 import { EnvironmentSummary } from '../shared/types';
 import { Icon } from './Icon';
 import { IconButton } from './components/IconButton';
@@ -13,11 +14,15 @@ interface Props {
   onSelectEnvironment: (environmentId?: string) => void;
   onManageEnvironments: () => void;
   onCopyCurl: () => void;
+  conversionTarget?: ConversionTarget;
+  onConvert?: (target: ConversionTarget) => void;
 }
+
+const CONVERSION_LABELS: Record<ConversionTarget, string> = { graphql: 'Convert to GraphQL', http: 'Convert to HTTP' };
 
 const NO_ENVIRONMENT = '__no_environment__';
 
-export function RequestToolbar({ environments, activeEnvironmentId, onSelectEnvironment, onManageEnvironments, onCopyCurl }: Props) {
+export function RequestToolbar({ environments, activeEnvironmentId, onSelectEnvironment, onManageEnvironments, onCopyCurl, conversionTarget, onConvert }: Props) {
   return (
     <div className="request-toolbar">
       <div className="environment-select">
@@ -53,6 +58,12 @@ export function RequestToolbar({ environments, activeEnvironmentId, onSelectEnvi
               <Icon icon={Settings02Icon} />
               Manage environments
             </DropdownMenuItem>
+            {conversionTarget && onConvert && (
+              <DropdownMenuItem onSelect={() => onConvert(conversionTarget)}>
+                <Icon icon={ArrowDataTransferHorizontalIcon} />
+                {CONVERSION_LABELS[conversionTarget]}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

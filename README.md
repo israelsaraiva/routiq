@@ -9,7 +9,7 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 - **Requests**: params, headers, bodies (JSON, XML, text, form, multipart, binary, GraphQL) and auth (bearer, basic, API key, OAuth 2.0, Digest).
 - **Collections and folders**, one JSON file each, optionally stored in your workspace (`.routiq`) and committed to git.
 - **Environments and variables**, including secret variables, with autocomplete.
-- **GraphQL** with schema introspection and completion, **SSE**, **WebSocket** and **gRPC**.
+- **GraphQL** with schema introspection and completion, **Convert to GraphQL / HTTP** from the request toolbar **…** menu, **SSE**, **WebSocket** and **gRPC**.
 - **Scripts and tests**: pre-request and post-response scripts, plus a collection/folder runner.
 - **Response viewer**: syntax highlighting, pretty/raw, JSON path filter, search, save to file.
 - **Import / export**: Routiq JSON, Postman v2.1, Insomnia, OpenAPI/Swagger and cURL; copy as cURL.
