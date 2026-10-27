@@ -264,6 +264,9 @@ export interface RoutiqExtensionApi {
   storage: Storage;
   panels: RequestPanels;
   treeView: vscode.TreeView<TreeNode>;
+  kafkaPanels: KafkaPanels;
+  kafkaProfiles: KafkaProfileStore;
+  kafkaTree: KafkaTreeProvider;
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<RoutiqExtensionApi> {
@@ -291,7 +294,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
   const kafkaProfiles = new KafkaProfileStore(context.globalState, context.secrets);
   const kafkaHistory = new KafkaMessageHistory(context.globalState);
   const kafkaPanels = new KafkaPanels({ extensionUri: context.extensionUri, storage, vault, profiles: kafkaProfiles, history: kafkaHistory, templates: new KafkaTemplateStore(context.globalState), messageSettings: new KafkaMessageSettingsStore(context.globalState, context.secrets), clientFactory: createKafkaClient });
-  const kafkaView = vscode.window.createTreeView('routiq.kafka', { treeDataProvider: new KafkaTreeProvider(kafkaProfiles) });
+  const kafkaTree = new KafkaTreeProvider(kafkaProfiles);
+  const kafkaView = vscode.window.createTreeView('routiq.kafka', { treeDataProvider: kafkaTree });
 
   const autoReveal = new TreeAutoReveal(tree, treeView);
 
@@ -351,7 +355,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
       await panels.clearAllHistory();
     }
   });
-  return { storage, panels, treeView };
+  return { storage, panels, treeView, kafkaPanels, kafkaProfiles, kafkaTree };
 }
 
 function focusSelectedCollection(selection: readonly TreeNode[], statusBar: EnvironmentStatusBar): void {
