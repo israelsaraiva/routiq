@@ -1,1 +1,1 @@
-export const EXTENSION_ID = 'isaraiva.routiq';
+export const EXTENSION_ID = 'israelsaraiva.routiq';
