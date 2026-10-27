@@ -3,7 +3,7 @@
   "displayName": "Routiq",
   "description": "A lightweight Insomnia/Postman-like REST client inside VS Code.",
   "version": "0.1.0",
-  "publisher": "israelsaraiva",
+  "publisher": "isaraiva",
   "author": {
     "name": "Israel Saraiva",
     "email": "israelspm@gmail.com"

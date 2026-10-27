@@ -265,7 +265,7 @@ Press **F5** (Run Extension) to launch an Extension Development Host.
 
 ### Publishing
 
-Create the `israelsaraiva` publisher at https://marketplace.visualstudio.com/manage and a Personal Access Token (scope: Marketplace → Manage). Add it as the `VSCE_PAT` repository secret (and optionally `OVSX_PAT` for Open VSX). Pushing a `v*` tag runs `.github/workflows/publish.yml`; locally use `npm run package` and `npm run publish:vsce`.
+Create the `isaraiva` publisher at https://marketplace.visualstudio.com/manage and a Personal Access Token (scope: Marketplace → Manage). Add it as the `VSCE_PAT` repository secret (and optionally `OVSX_PAT` for Open VSX). Pushing a `v*` tag runs `.github/workflows/publish.yml`; locally use `npm run package` and `npm run publish:vsce`.
 
 `npm run harness` builds the webview, renders it with a mocked `acquireVsCodeApi` and the same CSP as the extension under Dark Modern, Light Modern and High Contrast theme variables, and reports console/CSP errors, missing fonts and horizontal overflow. Pass a name filter to run a subset (`node scripts/webview-harness/run.js grpc`). The first run needs `npx playwright install chromium`.
 
