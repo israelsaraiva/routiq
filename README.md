@@ -1,6 +1,6 @@
 # Routiq
 
-A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, GraphQL, WebSocket, SSE and gRPC, with collections you can keep in git.
+A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, GraphQL, WebSocket, SSE, gRPC and Kafka, with collections you can keep in git.
 
 ![Routiq request editor and response viewer](media/screenshots/response.png)
 
@@ -10,6 +10,7 @@ A lightweight Insomnia/Postman-like API client that lives inside VS Code: REST, 
 - **Collections and folders** with drag-and-drop reordering, sorting (A→Z, Z→A, by method) and subcollections, one JSON file each, optionally stored in your workspace (`.routiq`) and committed to git.
 - **Environments and variables**, including secret variables, with live `{{variable}}` highlighting (defined vs unresolved), hover values and autocomplete.
 - **GraphQL** with schema introspection and completion, **Convert to GraphQL / HTTP** from the request toolbar **…** menu, **SSE**, **WebSocket** and **gRPC**.
+- **Kafka listener**: consume topics live, group messages into flows by flowId, search/filter, produce messages and browse Splunk JSON exports.
 - **Scripts and tests**: pre-request and post-response scripts, plus a collection/folder runner.
 - **Response viewer**: syntax highlighting, pretty/raw, JSON path filter, search, save to file.
 - **Import / export**: Routiq JSON, Postman v2.1, Insomnia, OpenAPI/Swagger and cURL; copy as cURL.
@@ -224,6 +225,56 @@ Right-click a collection or folder and choose **Run Collection/Folder** (also in
 
 Syntax-highlighted JSON/XML/HTML bodies (themed with VS Code colors), Pretty/Raw and line-wrap toggles, find-in-response (Enter / Shift+Enter for next/previous, match count), a JSON path filter (`$.data[0].name`, `data[*].id`, `['key']`, negative indexes), copy, and **Save body to file** (default extension from `Content-Type`). Status, time and size are shown above the body.
 
+## Kafka listener
+
+The **Kafka** view in the Routiq activity bar lists saved connections. Click **New Connection** (or run **Routiq: Open Kafka Listener**) to open a panel; each connection runs its own consumer inside the extension host (kafkajs) and is disconnected when the panel closes or the extension deactivates.
+
+- **Connection**: broker list and comma-separated topics, optional consumer group (default: a fresh `routiq-<id>` group), consume from beginning, SSL/TLS, SASL PLAIN / SCRAM-SHA-256 / SCRAM-SHA-512, **Use Test Kafka** preset (`localhost:9092` with sample topics). Brokers, topics and the send form accept `{{variables}}` from the collection picked under **Variables from collection**. Profiles are stored in global state; the SASL password only in VS Code Secret Storage.
+- **Messages**: newest first, grouped by flow. The flowId is read from the `flowId` / `flowid` / `flow-id` header, then the JSON content (`resource.flowId` first, then `flowId`, `flowid`, `flow-id`, `flow_id`, or a recursive search), then the message key. Search (value, topic, flowId, key, headers), topic filter, **Pause**, **Follow newest**, **Clear**, **Export all**, per-message/per-flow copy, download and delete, multi-select copy/delete, command/success/error badges and `fail`, `flowId`, `commandId` highlighting.
+- **Send**: produce a message with topic, key, headers (JSON object) and value; **Use for Send** and **Resend** reuse a received message.
+- **Log file**: import a Splunk JSON export (single JSON, array or NDJSON) and browse it as flows with search, container/level filters and sorting.
+- The latest messages per connection are remembered between sessions.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `routiq.kafka.maxMessages` | `1000` | Messages kept in memory per panel. |
+| `routiq.kafka.persistedMessages` | `200` | Messages remembered per connection (`0` disables). |
+| `routiq.kafka.connectionTimeoutMs` | `10000` | Broker connection timeout. |
+
+### Local Kafka with Docker
+
+Save as `docker-compose.yml` and run `docker compose up -d`, then connect to `localhost:9092`:
+
+```yaml
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: kafka-zookeeper
+    ports:
+      - '2181:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-broker
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+      - '9093:9093'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+```
+
 ## UI
 
 The request editor uses [Hugeicons](https://hugeicons.com) (`@hugeicons/react`, free core set) for icons and the Jost font, bundled locally via `@fontsource-variable/jost` (copied into `dist/` by esbuild; no CDN). Code and response bodies stay monospace.
@@ -250,7 +301,7 @@ Every sent HTTP request is recorded (method, final URL, status, duration, size, 
 
 ## Help and About
 
-- **Routiq: Help** (`routiq.openHelp`) opens a searchable help page: getting started, requests, variables, importing/exporting, scripts, runner, GraphQL, WebSocket/SSE, gRPC, storage and Git, network settings, keyboard shortcuts and a FAQ. Its search box filters sections and items by text, and it has an **Open settings** button and an **Open README** button.
+- **Routiq: Help** (`routiq.openHelp`) opens a searchable help page: getting started, requests, variables, importing/exporting, scripts, runner, GraphQL, WebSocket/SSE, gRPC, Kafka, storage and Git, network settings, keyboard shortcuts and a FAQ. Its search box filters sections and items by text, and it has an **Open settings** button and an **Open README** button.
 - **Routiq: About** (`routiq.openAbout`) shows the version, publisher, license, VS Code / Electron / Node versions, the storage directory in use (with **Reveal** and **Copy path**), collection and request counts, credits for the main open-source libraries, and **Copy diagnostics** (versions and settings, with proxy credentials redacted, no secrets) for bug reports.
 - Both are in the command palette and the overflow (`...`) menu of the Routiq view title; the empty view also offers a **Get Started** link.
 
@@ -258,7 +309,7 @@ Every sent HTTP request is recorded (method, final URL, status, duration, size, 
 
 Developed by Israel Saraiva ([israelspm@gmail.com](mailto:israelspm@gmail.com)); use **Contact / Send feedback** on the About page to write an email.
 
-Built with React, Radix UI, Hugeicons, the Jost font (SIL OFL 1.1), undici, ws, `@grpc/grpc-js`, graphql, https-proxy-agent and yaml.
+Built with React, Radix UI, Hugeicons, the Jost font (SIL OFL 1.1), undici, ws, `@grpc/grpc-js`, kafkajs, graphql, https-proxy-agent and yaml.
 
 ## Development
 

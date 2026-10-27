@@ -1,9 +1,9 @@
 import { InfoWebviewMessage } from '../core/infoMessages';
 import { RunnerWebviewMessage } from '../core/runnerMessages';
-import { WebviewToHostMessage } from '../shared/types';
+import { KafkaWebviewMessage, WebviewToHostMessage } from '../shared/types';
 
 interface VsCodeApi {
-  postMessage(message: WebviewToHostMessage | RunnerWebviewMessage | InfoWebviewMessage): void;
+  postMessage(message: WebviewToHostMessage | RunnerWebviewMessage | InfoWebviewMessage | KafkaWebviewMessage): void;
 }
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -19,5 +19,9 @@ export function postRunnerMessage(message: RunnerWebviewMessage): void {
 }
 
 export function postInfoMessage(message: InfoWebviewMessage): void {
+  api.postMessage(message);
+}
+
+export function postKafkaMessage(message: KafkaWebviewMessage): void {
   api.postMessage(message);
 }

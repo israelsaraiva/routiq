@@ -364,3 +364,114 @@ export type GraphqlHostMessage =
   | { type: 'graphqlSchemaFetching' };
 
 export type GraphqlWebviewMessage = { type: 'graphqlFetchSchema'; request: RequestModel } | { type: 'graphqlLoadCachedSchema'; request: RequestModel };
+
+export type KafkaSaslMechanism = 'none' | 'plain' | 'scram-sha-256' | 'scram-sha-512';
+
+export type KafkaConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+export type KafkaFlowIdSource = 'header' | 'json-content' | 'key' | 'none' | 'splunk';
+
+export interface KafkaProfile {
+  id: string;
+  name: string;
+  brokers: string;
+  topics: string;
+  fromBeginning: boolean;
+  groupId: string;
+  ssl: boolean;
+  saslMechanism: KafkaSaslMechanism;
+  saslUsername: string;
+  variablesCollectionId?: string;
+}
+
+export interface KafkaProfileView extends KafkaProfile {
+  hasSaslPassword: boolean;
+}
+
+export interface KafkaProfileDraft extends KafkaProfile {
+  saslPassword?: string;
+}
+
+export interface KafkaMessage {
+  id: string;
+  flowId: string;
+  timestamp: number;
+  topic: string;
+  partition: number;
+  offset: string;
+  key: string | null;
+  value: string;
+  headers?: Record<string, string>;
+  flowIdSource?: KafkaFlowIdSource;
+  containerName?: string;
+  level?: string;
+  rawMessage?: string;
+  structuredMessage?: string;
+  eventType?: string;
+  flowName?: string;
+}
+
+export interface KafkaStatus {
+  state: KafkaConnectionState;
+  detail?: string;
+}
+
+export interface KafkaProduceRequest {
+  requestId: string;
+  profile: KafkaProfileDraft;
+  topic: string;
+  key: string | null;
+  value: string;
+  headers: Record<string, string>;
+}
+
+export interface KafkaProduceResult {
+  requestId: string;
+  ok: boolean;
+  topic: string;
+  partition?: number;
+  offset?: string;
+  error?: string;
+}
+
+export interface KafkaCollectionOption {
+  id: string;
+  name: string;
+}
+
+export interface KafkaLogFile {
+  name: string;
+  text: string;
+}
+
+export type KafkaHostMessage =
+  | {
+      type: 'kafkaInit';
+      profiles: KafkaProfileView[];
+      activeProfileId?: string;
+      collections: KafkaCollectionOption[];
+      maxMessages: number;
+      status: KafkaStatus;
+      messages: KafkaMessage[];
+      logFile?: KafkaLogFile;
+    }
+  | { type: 'kafkaProfiles'; profiles: KafkaProfileView[]; activeProfileId?: string }
+  | { type: 'kafkaStatus'; status: KafkaStatus }
+  | { type: 'kafkaMessages'; messages: KafkaMessage[]; replace: boolean }
+  | { type: 'kafkaProduceResult'; result: KafkaProduceResult }
+  | { type: 'kafkaLogFile'; logFile?: KafkaLogFile };
+
+export type KafkaWebviewMessage =
+  | { type: 'kafkaReady' }
+  | { type: 'kafkaSaveProfile'; profile: KafkaProfileDraft }
+  | { type: 'kafkaDeleteProfile'; profileId: string }
+  | { type: 'kafkaSelectProfile'; profileId: string }
+  | { type: 'kafkaConnect'; profile: KafkaProfileDraft }
+  | { type: 'kafkaDisconnect' }
+  | { type: 'kafkaProduce'; request: KafkaProduceRequest }
+  | { type: 'kafkaDeleteMessages'; messageIds: string[] }
+  | { type: 'kafkaClearMessages' }
+  | { type: 'kafkaImportLogFile' }
+  | { type: 'kafkaClearLogFile' }
+  | { type: 'kafkaSaveFile'; suggestedName: string; content: string }
+  | { type: 'kafkaCopy'; text: string };

@@ -1,8 +1,8 @@
 {
   "name": "routiq",
   "displayName": "Routiq",
-  "description": "A lightweight Insomnia/Postman-like REST client inside VS Code.",
-  "version": "0.1.7",
+  "description": "A lightweight Insomnia/Postman-like REST, GraphQL, gRPC and Kafka client inside VS Code.",
+  "version": "0.2.0",
   "publisher": "israelsaraiva",
   "author": {
     "name": "Israel Saraiva",
@@ -30,7 +30,8 @@
     "postman",
     "insomnia",
     "curl",
-    "openapi"
+    "openapi",
+    "kafka"
   ],
   "galleryBanner": {
     "color": "#1f2937",
@@ -60,6 +61,10 @@
         {
           "id": "routiq.collections",
           "name": "Collections"
+        },
+        {
+          "id": "routiq.kafka",
+          "name": "Kafka"
         }
       ]
     },
@@ -67,6 +72,10 @@
       {
         "view": "routiq.collections",
         "contents": "No collections yet.\n[New Collection](command:routiq.newCollection)\n[Import](command:routiq.import)\n[Get Started](command:routiq.openHelp)"
+      },
+      {
+        "view": "routiq.kafka",
+        "contents": "No Kafka connections yet.\n[New Connection](command:routiq.newKafkaConnection)\n[Open Listener](command:routiq.openKafka)"
       }
     ],
     "configuration": {
@@ -148,6 +157,24 @@
           "default": 0,
           "minimum": 0,
           "description": "Delay in milliseconds between requests when running a collection or folder."
+        },
+        "routiq.kafka.maxMessages": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 1,
+          "description": "Maximum Kafka messages kept in memory per listener panel."
+        },
+        "routiq.kafka.persistedMessages": {
+          "type": "number",
+          "default": 200,
+          "minimum": 0,
+          "description": "Kafka messages remembered per connection between sessions. 0 disables persistence."
+        },
+        "routiq.kafka.connectionTimeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "description": "Kafka broker connection timeout in milliseconds."
         }
       }
     },
@@ -343,6 +370,32 @@
         "title": "About",
         "category": "Routiq",
         "icon": "$(info)"
+      },
+      {
+        "command": "routiq.openKafka",
+        "title": "Routiq: Open Kafka Listener"
+      },
+      {
+        "command": "routiq.newKafkaConnection",
+        "title": "Routiq: New Kafka Connection",
+        "icon": "$(add)"
+      },
+      {
+        "command": "routiq.openKafkaConnection",
+        "title": "Open Kafka Connection"
+      },
+      {
+        "command": "routiq.deleteKafkaConnection",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "routiq.duplicateKafkaConnection",
+        "title": "Duplicate"
+      },
+      {
+        "command": "routiq.renameKafkaConnection",
+        "title": "Rename"
       }
     ],
     "submenus": [
@@ -438,6 +491,11 @@
           "command": "routiq.openAbout",
           "when": "view == routiq.collections",
           "group": "9_help@2"
+        },
+        {
+          "command": "routiq.newKafkaConnection",
+          "when": "view == routiq.kafka",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -555,6 +613,26 @@
           "command": "routiq.manageCookies",
           "when": "viewItem == collection",
           "group": "2_env@3"
+        },
+        {
+          "command": "routiq.openKafkaConnection",
+          "when": "view == routiq.kafka && viewItem == kafkaConnection",
+          "group": "0_open"
+        },
+        {
+          "command": "routiq.renameKafkaConnection",
+          "when": "view == routiq.kafka && viewItem == kafkaConnection",
+          "group": "1_edit@1"
+        },
+        {
+          "command": "routiq.duplicateKafkaConnection",
+          "when": "view == routiq.kafka && viewItem == kafkaConnection",
+          "group": "1_edit@2"
+        },
+        {
+          "command": "routiq.deleteKafkaConnection",
+          "when": "view == routiq.kafka && viewItem == kafkaConnection",
+          "group": "2_danger"
         }
       ],
       "commandPalette": [
@@ -604,6 +682,22 @@
         },
         {
           "command": "routiq.copyAsCurl",
+          "when": "false"
+        },
+        {
+          "command": "routiq.openKafkaConnection",
+          "when": "false"
+        },
+        {
+          "command": "routiq.deleteKafkaConnection",
+          "when": "false"
+        },
+        {
+          "command": "routiq.duplicateKafkaConnection",
+          "when": "false"
+        },
+        {
+          "command": "routiq.renameKafkaConnection",
           "when": "false"
         }
       ]
@@ -664,6 +758,7 @@
     "clsx": "^2.1.1",
     "graphql": "^16.14.2",
     "https-proxy-agent": "^9.1.0",
+    "kafkajs": "^2.2.4",
     "undici": "^6.29.1",
     "ws": "^8.22.0",
     "yaml": "^2.9.1"

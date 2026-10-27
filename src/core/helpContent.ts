@@ -479,6 +479,48 @@ const NETWORK_SETTINGS: HelpSection = {
   hasSettingsButton: true,
 };
 
+const KAFKA: HelpSection = {
+  id: 'kafka',
+  title: 'Kafka listener',
+  summary: 'Listen to topics, follow message flows and produce test messages.',
+  items: [
+    {
+      id: 'kafka-connect',
+      title: 'Connect and listen',
+      body: [
+        'Open the Kafka view and choose New Connection (or run "Routiq: Open Kafka Listener"). Enter one or more brokers and comma-separated topics, then Connect.',
+        'Use Test Kafka fills localhost:9092 and the sample topics. Optional: consumer group, consume from beginning, SSL/TLS and SASL (PLAIN, SCRAM-SHA-256/512). The SASL password is kept in VS Code Secret Storage, never in plain JSON.',
+        'Pick a collection under "Variables from collection" to use {{variables}} in brokers, topics and the send form.',
+      ],
+      keywords: ['kafka', 'broker', 'topic', 'sasl', 'ssl', 'consumer'],
+    },
+    {
+      id: 'kafka-flows',
+      title: 'Messages and flow linking',
+      body: [
+        'Messages are grouped by flowId, taken from the flowId/flowid/flow-id header, then the JSON content (resource.flowId first), then the message key. Groups show duration, can be collapsed, copied, downloaded or deleted.',
+        'Search matches value, topic, flowId, key and headers. Pause freezes the list while new messages keep arriving; Follow newest keeps the latest message in view. Select messages to copy or delete them, or Export all as JSON.',
+        'The last messages per connection are remembered between sessions (routiq.kafka.persistedMessages).',
+      ],
+      keywords: ['flowid', 'flow', 'search', 'pause', 'export'],
+    },
+    {
+      id: 'kafka-send',
+      title: 'Send messages',
+      body: [
+        'The Send tab produces a message with topic, optional key, headers (a JSON object) and value. "Use for Send" copies a received message into the form and "Resend" produces it again.',
+      ],
+      keywords: ['produce', 'send', 'resend', 'headers'],
+    },
+    {
+      id: 'kafka-log-file',
+      title: 'Splunk JSON log file',
+      body: ['The Log file tab imports a Splunk JSON export (single JSON, array or NDJSON) and shows it as flows, with search, container/level filters and ordering.'],
+      keywords: ['splunk', 'json', 'log', 'ndjson'],
+    },
+  ],
+};
+
 const KEYBOARD_SHORTCUTS: HelpSection = {
   id: 'keyboard-shortcuts',
   title: 'Keyboard shortcuts',
@@ -552,6 +594,7 @@ export const HELP_SECTIONS: HelpSection[] = [
   GRAPHQL,
   STREAMS,
   GRPC,
+  KAFKA,
   STORAGE_AND_GIT,
   NETWORK_SETTINGS,
   KEYBOARD_SHORTCUTS,

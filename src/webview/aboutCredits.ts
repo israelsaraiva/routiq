@@ -12,6 +12,7 @@ export const CREDITS: Credit[] = [
   { name: 'undici', purpose: 'HTTP client', license: 'MIT' },
   { name: 'ws', purpose: 'WebSocket client', license: 'MIT' },
   { name: '@grpc/grpc-js and @grpc/proto-loader', purpose: 'gRPC client', license: 'Apache-2.0' },
+  { name: 'kafkajs', purpose: 'Kafka client', license: 'MIT' },
   { name: 'graphql', purpose: 'GraphQL parsing and introspection', license: 'MIT' },
   { name: 'https-proxy-agent', purpose: 'Proxy support for WebSocket', license: 'MIT' },
   { name: 'yaml', purpose: 'OpenAPI YAML import', license: 'ISC' },

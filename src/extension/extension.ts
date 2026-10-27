@@ -13,6 +13,11 @@ import { EnvironmentPanels } from './environmentPanels';
 import { EnvironmentStatusBar, switchEnvironment } from './environmentSwitcher';
 import { chooseImportSource, exportCollectionAsPostman, exportCollections, importCurl, importFromClipboard } from './importExport';
 import { InfoPanels } from './infoPanels';
+import { createKafkaClient } from './kafkaClient';
+import { KafkaMessageHistory } from './kafkaMessageHistory';
+import { KafkaPanels } from './kafkaPanels';
+import { KafkaProfileStore } from './kafkaProfileStore';
+import { KafkaProfileItem, KafkaTreeProvider } from './kafkaTree';
 import { HistoryStore } from './historyStore';
 import { GraphqlSchemaStore } from './graphqlSchemaStore';
 import { pickRequestKind } from './requestKindPicker';
@@ -215,6 +220,34 @@ function registerEnvironmentCommands(register: Registrar, { storage, environment
 type Registrar = <Target = TreeNode>(command: string, handler: (target?: Target) => unknown) => void;
 type CollectionTarget = TreeNode | string;
 
+function registerKafkaCommands(register: Registrar, profiles: KafkaProfileStore, kafkaPanels: KafkaPanels, history: KafkaMessageHistory): void {
+  const profileIdOf = (target?: unknown) => (target instanceof KafkaProfileItem ? target.profile.id : undefined);
+  const askName = (value?: string) => vscode.window.showInputBox({ prompt: 'Connection name', value, validateInput: (input) => (input.trim() ? undefined : 'Name is required') });
+  register<unknown>('routiq.openKafka', () => kafkaPanels.openProfile());
+  register<unknown>('routiq.newKafkaConnection', async () => {
+    const name = await askName('New Connection');
+    name && (await kafkaPanels.openNewConnection(name.trim()));
+  });
+  register<unknown>('routiq.openKafkaConnection', (target) => kafkaPanels.openProfile(profileIdOf(target)));
+  register<unknown>('routiq.duplicateKafkaConnection', async (target) => {
+    const profileId = profileIdOf(target);
+    profileId && (await profiles.duplicate(profileId));
+  });
+  register<unknown>('routiq.renameKafkaConnection', async (target) => {
+    const profileId = profileIdOf(target);
+    const name = profileId && (await askName(profiles.get(profileId)?.name));
+    profileId && name && (await profiles.rename(profileId, name.trim()));
+  });
+  register<unknown>('routiq.deleteKafkaConnection', async (target) => {
+    const profileId = profileIdOf(target);
+    const answer = profileId && (await vscode.window.showWarningMessage('Delete this Kafka connection?', { modal: true }, 'Delete'));
+    if (profileId && answer === 'Delete') {
+      await profiles.remove(profileId);
+      await history.saveMessages(profileId, [], 0);
+    }
+  });
+}
+
 function createRegistrar(context: vscode.ExtensionContext): Registrar {
   return (command, handler) => context.subscriptions.push(vscode.commands.registerCommand(command, handler));
 }
@@ -245,6 +278,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
     canSelectMany: true,
   });
 
+  const kafkaProfiles = new KafkaProfileStore(context.globalState, context.secrets);
+  const kafkaHistory = new KafkaMessageHistory(context.globalState);
+  const kafkaPanels = new KafkaPanels({ extensionUri: context.extensionUri, storage, vault, profiles: kafkaProfiles, history: kafkaHistory, clientFactory: createKafkaClient });
+  const kafkaView = vscode.window.createTreeView('routiq.kafka', { treeDataProvider: new KafkaTreeProvider(kafkaProfiles) });
+
   const autoReveal = new TreeAutoReveal(tree, treeView);
 
   context.subscriptions.push(
@@ -253,6 +291,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
     panels,
     environmentPanels,
     infoPanels,
+    kafkaProfiles,
+    kafkaPanels,
+    kafkaView,
     statusBar,
     treeView,
     storage.onDidDeleteRequests((requestIds) => void Promise.all(requestIds.map((requestId) => historyStore.clear(requestId))).catch(() => undefined)),
@@ -272,6 +313,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Routiq
   registerMoveCommands(register, services);
   registerImportExportCommands(register, services);
   registerEnvironmentCommands(register, services);
+  registerKafkaCommands(register, kafkaProfiles, kafkaPanels, kafkaHistory);
   const treeFilter = new TreeFilter(tree, treeView);
   register('routiq.searchRequests', async () => {
     const requestId = await pickRequestId(storage);

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+- New **Kafka listener**: a Kafka view in the activity bar with saved connections and a dedicated panel (`Routiq: Open Kafka Listener`, `Routiq: New Kafka Connection`). Connect to one or more brokers and topics (with `{{variables}}` from a collection), choose consume-from-beginning and a consumer group, and use SSL/TLS and SASL (PLAIN, SCRAM-SHA-256/512); SASL passwords live in Secret Storage only.
+- Live message list with search, topic filter, pause/resume, follow-newest, clear, export, per-message and per-flow copy/download/delete, selection actions, JSON pretty view, headers/key details and keyword highlighting.
+- FlowID linking: messages are grouped into flows by header, JSON content or key, with durations and linked counts.
+- Send tab to produce messages (topic, key, headers, value), plus **Use for Send** and **Resend** on received messages.
+- Splunk JSON log file import (single JSON, array or NDJSON) shown as flows, with container/level filters and sorting.
+- Last messages per connection are remembered (`routiq.kafka.persistedMessages`); new settings `routiq.kafka.maxMessages` and `routiq.kafka.connectionTimeoutMs`.
+- Help page: new Kafka listener section.
+
 ## 0.1.7
 
 - Sort collections and requests: right-click a collection or folder → **Sort** → A→Z, Z→A or by method (GET, POST, PUT, PATCH, DELETE, others), with recursive variants; **Sort Collections A→Z / Z→A** in the view menu. Sorting is saved, and manual order still works afterwards.

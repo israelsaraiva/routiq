@@ -24,7 +24,7 @@ const webviewConfig = {
   sourcemap: true,
   minify: !watching,
   jsx: 'automatic',
-  alias: { crypto: './src/webview/browserCrypto.ts' },
+  alias: { crypto: './src/webview/browserCrypto.ts', 'node:crypto': './src/webview/browserCrypto.ts' },
   loader: { '.woff2': 'file' },
   assetNames: '[name]',
   define: { 'process.env.NODE_ENV': watching ? '"development"' : '"production"' },
