@@ -13,15 +13,28 @@ import { EmptyState } from './EmptyState';
 import { ExperienceHeader } from './ExperienceHeader';
 import { FlowGroupList } from './FlowGroupList';
 import { MessageDisplayContext } from './MessageDisplayContext';
+import { MessageDetailPanel } from './MessageDetailPanel';
 import { MessageNavContext, useMessageNavState } from './MessageNav';
 import { MessagesOptions, OptionsToggle, useOptionsOpen } from './MessagesOptions';
 import { copyFlow, copyMessage, copyMessages, downloadFlow } from './flowActions';
 import { ProduceActions, ProduceContext } from './ProduceActions';
+import { PanelSide, ResizeHandle } from './ResizeHandle';
+import { useElementWidth } from './useElementWidth';
 import { useMessageExperience } from './useMessageExperience';
 import { useMessageSelection } from './useMessageSelection';
 import { useMessageShortcuts } from './useMessageShortcuts';
+import { useStoredNumber } from './useStoredNumber';
 
 export const START_FROM_LAST_COUNT = 10;
+
+const WIDE_LAYOUT_MIN_WIDTH = 760;
+const DETAIL_MIN_SIZE = 240;
+const DETAIL_DEFAULT_WIDTH = 400;
+const DETAIL_DEFAULT_HEIGHT = 260;
+const LIST_MIN_SIZE = 280;
+const DETAIL_WIDTH_KEY = 'routiq.kafka.detailWidth';
+const DETAIL_HEIGHT_KEY = 'routiq.kafka.detailHeight';
+const MAX_VERTICAL_SHARE = 0.7;
 
 interface Props {
   messages: KafkaMessage[];
@@ -44,6 +57,11 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, onS
   const selection = useMessageSelection();
   const root = useRef<HTMLDivElement>(null);
   const [optionsOpen, setOptionsOpen] = useOptionsOpen();
+  const body = useRef<HTMLDivElement>(null);
+  const bodyWidth = useElementWidth(body);
+  const [detailWidth, setDetailWidth] = useStoredNumber(DETAIL_WIDTH_KEY, DETAIL_DEFAULT_WIDTH);
+  const [detailHeight, setDetailHeight] = useStoredNumber(DETAIL_HEIGHT_KEY, DETAIL_DEFAULT_HEIGHT);
+  const side: PanelSide = bodyWidth >= WIDE_LAYOUT_MIN_WIDTH ? 'right' : 'bottom';
 
   const displayed = frozen ?? messages;
   const visible = useMemo(() => experience.apply(displayed), [displayed, experience.apply]);
@@ -54,13 +72,14 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, onS
   const selectedMessages = visible.filter((message) => selection.selectedIds.has(message.id));
   const orderedIds = useMemo(() => groups.flatMap((group) => group.messages.map((message) => message.id)), [groups]);
   const nav = useMessageNavState(orderedIds);
+  const openMessage = visible.find((message) => message.id === nav.openId);
 
   useMessageShortcuts({
     active,
     onFocusFilter: () => root.current?.querySelector<HTMLInputElement>('input[aria-label="Search messages"]')?.focus(),
     onTogglePause: () => setFrozen(frozen ? null : messages),
     onMove: nav.move,
-    onClose: nav.collapse,
+    onClose: nav.close,
   });
 
   useEffect(() => {
@@ -136,6 +155,7 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, onS
           </>
         )}
       </div>
+      <div ref={body} className="kafka-body" data-side={side}>
       <div ref={scroller} className="kafka-scroll">
         {groups.length === 0 ? (
           <MessagesEmptyState
@@ -158,6 +178,29 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, onS
             onResend={onResend}
           />
         )}
+      </div>
+      {openMessage && (
+        <>
+          <ResizeHandle
+            side={side}
+            size={side === 'right' ? detailWidth : detailHeight}
+            min={DETAIL_MIN_SIZE}
+            max={side === 'right' ? bodyWidth - LIST_MIN_SIZE : Math.round(window.innerHeight * MAX_VERTICAL_SHARE)}
+            label="Resize message detail"
+            onResize={side === 'right' ? setDetailWidth : setDetailHeight}
+          />
+          <div className="kafka-detail-slot" style={side === 'right' ? { width: detailWidth } : { height: detailHeight }}>
+            <MessageDetailPanel
+              message={openMessage}
+              onClose={nav.close}
+              onCopy={copyMessage}
+              onDelete={(message) => deleteMessages([message.id])}
+              onUseForSend={onUseForSend}
+              onResend={onResend}
+            />
+          </div>
+        </>
+      )}
       </div>
     </div>
     </MessageNavContext.Provider>

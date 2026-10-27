@@ -446,6 +446,7 @@ export interface KafkaStatus {
   state: KafkaConnectionState;
   detail?: string;
   attempt?: number;
+  nextRetryAt?: number;
 }
 
 export interface KafkaProduceRequest {
@@ -490,6 +491,7 @@ export type KafkaHostMessage =
     }
   | { type: 'kafkaProfiles'; profiles: KafkaProfileView[]; activeProfileId?: string }
   | { type: 'kafkaStatus'; status: KafkaStatus }
+  | { type: 'kafkaLag'; totalLag?: number }
   | { type: 'kafkaMessages'; messages: KafkaMessage[]; replace: boolean }
   | { type: 'kafkaProduceResult'; result: KafkaProduceResult }
   | { type: 'kafkaLogFile'; logFile?: KafkaLogFile }

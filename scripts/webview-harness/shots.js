@@ -33,7 +33,7 @@ const shots = [
   { name: 'environments', view: 'environments', width: 900, height: 560, run: async (page) => { await host(page, { type: 'environmentsLoad', collectionName: 'Demo API', draft: fx.environmentsDraft }); await settle(page); } },
   { name: 'kafka-messages', view: 'kafka', width: 1200, height: 860, run: async (page) => {
     await kafkaScenes.messages(page);
-    await page.getByLabel('Show details').first().click();
+    await page.getByLabel('Show message details').nth(1).click();
     await settle(page);
   } },
   { name: 'kafka-groups', view: 'kafka', width: 1200, height: 720, run: kafkaScenes.groups },

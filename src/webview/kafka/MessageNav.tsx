@@ -2,14 +2,14 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 
 export interface MessageNav {
   activeId: string | null;
-  expandedId: string | null;
+  openId: string | null;
   activate: (messageId: string) => void;
-  toggleExpanded: (messageId: string) => void;
-  collapse: () => void;
+  open: (messageId: string) => void;
+  close: () => void;
   move: (offset: number) => void;
 }
 
-const NO_OP_NAV: MessageNav = { activeId: null, expandedId: null, activate: () => undefined, toggleExpanded: () => undefined, collapse: () => undefined, move: () => undefined };
+const NO_OP_NAV: MessageNav = { activeId: null, openId: null, activate: () => undefined, open: () => undefined, close: () => undefined, move: () => undefined };
 
 export const MessageNavContext = createContext<MessageNav>(NO_OP_NAV);
 
@@ -19,11 +19,11 @@ export function useMessageNav(): MessageNav {
 
 export function useMessageNavState(orderedIds: string[]): MessageNav {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
-  const toggleExpanded = useCallback((messageId: string) => {
+  const open = useCallback((messageId: string) => {
     setActiveId(messageId);
-    setExpandedId((current) => (current === messageId ? null : messageId));
+    setOpenId(messageId);
   }, []);
 
   const move = useCallback(
@@ -35,12 +35,12 @@ export function useMessageNavState(orderedIds: string[]): MessageNav {
       const nextIndex = Math.min(Math.max(currentIndex + offset, 0), orderedIds.length - 1);
       const nextId = orderedIds[nextIndex];
       setActiveId(nextId);
-      setExpandedId((current) => (current === null ? null : nextId));
+      setOpenId((current) => (current === null ? null : nextId));
     },
     [orderedIds, activeId],
   );
 
-  const collapse = useCallback(() => setExpandedId(null), []);
+  const close = useCallback(() => setOpenId(null), []);
 
-  return useMemo(() => ({ activeId, expandedId, activate: setActiveId, toggleExpanded, collapse, move }), [activeId, expandedId, toggleExpanded, collapse, move]);
+  return useMemo(() => ({ activeId, openId, activate: setActiveId, open, close, move }), [activeId, openId, open, close, move]);
 }

@@ -312,6 +312,73 @@ describe('importOpenApi security and multipart', () => {
     expect((collection.items as RequestModel[]).map((request) => request.auth.type)).toEqual(['basic', 'apikey']);
   });
 
+  describe('OAuth 2.0, cookies and OpenID Connect', () => {
+    const identityProvider = 'https://login.shop.test/oauth2';
+    const document = {
+      openapi: '3.0.3',
+      info: { title: 'Shop API' },
+      servers: [{ url: 'https://api.shop.test/v1' }],
+      components: {
+        securitySchemes: {
+          codeFlow: {
+            type: 'oauth2',
+            flows: { authorizationCode: { authorizationUrl: `${identityProvider}/authorize`, tokenUrl: `${identityProvider}/token`, scopes: { 'orders:read': 'Read orders' } } },
+          },
+          machine: { type: 'oauth2', flows: { clientCredentials: { tokenUrl: `${identityProvider}/token`, scopes: { 'orders:write': 'Write orders' } } } },
+          sessionCookie: { type: 'apiKey', in: 'cookie', name: 'SESSION' },
+          oidc: { type: 'openIdConnect', openIdConnectUrl: 'https://login.shop.test/.well-known/openid-configuration' },
+        },
+      },
+      paths: {
+        '/orders': { get: { summary: 'List orders', security: [{ codeFlow: ['orders:read'] }] } },
+        '/orders/export': { post: { summary: 'Export orders', security: [{ machine: [] }] } },
+        '/session': { get: { summary: 'Session info', security: [{ sessionCookie: [] }] } },
+        '/profile': { get: { summary: 'Profile', security: [{ oidc: ['profile'] }] } },
+      },
+    };
+
+    it('maps the authorization code flow with PKCE and keeps secrets as variables', () => {
+      const [orders] = importOpenApi(document).items as RequestModel[];
+      expect(orders.auth).toEqual({
+        type: 'oauth2',
+        grant: 'authorization_code',
+        tokenUrl: `${identityProvider}/token`,
+        authUrl: `${identityProvider}/authorize`,
+        redirectUrl: '',
+        usePkce: true,
+        clientId: '{{clientId}}',
+        clientSecret: '{{clientSecret}}',
+        scope: 'orders:read',
+        username: '',
+        password: '',
+      });
+    });
+
+    it('sends cookie API keys through a Cookie header using a variable', () => {
+      const collection = importOpenApi(document);
+      const session = (collection.items as RequestModel[])[2];
+      expect(session.auth).toEqual({ type: 'none' });
+      expect(session.headers).toEqual([{ key: 'Cookie', value: 'SESSION={{apiKey}}', enabled: true }]);
+      expect(collection.variables.map((variable) => variable.key)).toEqual(['baseUrl', 'clientId', 'clientSecret', 'apiKey']);
+    });
+
+    it('warns that OpenID Connect is unsupported and leaves auth empty', () => {
+      const warnings: string[] = [];
+      const profile = (importOpenApi(document, undefined, warnings).items as RequestModel[])[3];
+      expect(profile.auth).toEqual({ type: 'none' });
+      expect(warnings).toEqual(['"Profile": OpenID Connect scheme "oidc" is not supported; auth was left empty. Configure OAuth 2.0 manually.']);
+    });
+
+    it('maps Swagger 2.0 accessCode flows', () => {
+      const [request] = importOpenApi({
+        swagger: '2.0',
+        securityDefinitions: { oauth: { type: 'oauth2', flow: 'accessCode', authorizationUrl: 'https://a.test/auth', tokenUrl: 'https://a.test/token', scopes: { read: 'r' } } },
+        paths: { '/a': { get: { security: [{ oauth: ['read'] }] } } },
+      }).items as RequestModel[];
+      expect(request.auth).toMatchObject({ grant: 'authorization_code', authUrl: 'https://a.test/auth', usePkce: true, scope: 'read' });
+    });
+  });
+
   it('imports multipart/form-data bodies with file and text fields', () => {
     const collection = importOpenApi({
       openapi: '3.0.0',

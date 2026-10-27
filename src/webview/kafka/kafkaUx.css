@@ -17,11 +17,11 @@
 .kafka-message { position: relative; }
 .kafka-message:hover, .kafka-message[data-active='true'] { background: var(--vscode-list-hoverBackground, var(--accent)); }
 .kafka-message[data-active='true'] { border-left-color: var(--vscode-focusBorder, var(--info)); }
-.kafka-message[data-expanded='true'] { background: var(--vscode-list-inactiveSelectionBackground, var(--muted)); }
+.kafka-message[data-open='true'] { background: var(--vscode-list-inactiveSelectionBackground, var(--muted)); }
 .kafka-message[data-tombstone='true'] { border-left-style: dashed; border-left-color: var(--vscode-editorWarning-foreground, var(--warning)); }
 .kafka-flow-marker { position: absolute; left: -7px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--vscode-editorIndentGuide-activeBackground1, var(--info)); border: 1px solid var(--background); }
 .kafka-flow-delta { padding: 0 var(--rq-space-3); color: var(--muted-foreground); font-size: 0.8em; font-family: var(--rq-mono); line-height: 1.4; }
-.kafka-row-main { display: flex; align-items: center; flex: 1 1 auto; gap: var(--rq-space-2); min-width: 0; cursor: pointer; }
+.kafka-row-main { display: flex; align-items: center; flex: 1 1 auto; gap: var(--rq-space-2); min-width: 0; overflow: hidden; cursor: pointer; }
 .kafka-row-main > * { flex: 0 0 auto; }
 .kafka-row-main .kafka-preview { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--rq-mono); color: var(--muted-foreground); }
 .kafka-preview[data-tombstone='true'] { font-style: italic; color: var(--vscode-editorWarning-foreground, var(--warning)); }
@@ -33,7 +33,7 @@
 .kafka-message-actions { opacity: 0; }
 .kafka-message:hover .kafka-message-actions, .kafka-message:focus-within .kafka-message-actions, .kafka-message[data-active='true'] .kafka-message-actions { opacity: 1; }
 .kafka-flow-header .kafka-message-actions { opacity: 1; }
-.kafka-view button:focus-visible, .kafka-view input:focus-visible, .kafka-view [role='tab']:focus-visible, .kafka-view [role='checkbox']:focus-visible, .kafka-view [role='switch']:focus-visible, .kafka-view textarea:focus-visible, .kafka-view [role='combobox']:focus-visible { outline: 2px solid var(--vscode-focusBorder, currentColor); outline-offset: 1px; }
+.kafka-view button:focus-visible, .kafka-view input:focus-visible, .kafka-view [role='tab']:focus-visible, .kafka-view [role='checkbox']:focus-visible, .kafka-view [role='switch']:focus-visible, .kafka-view textarea:focus-visible, .kafka-view [role='combobox']:focus-visible, .kafka-view [role='separator']:focus-visible, .kafka-row-main:focus-visible { outline: 2px solid var(--vscode-focusBorder, currentColor); outline-offset: 1px; }
 .kafka-tree-string { color: var(--vscode-charts-green, var(--vscode-terminal-ansiGreen)); }
 .kafka-tree-number { color: var(--vscode-charts-blue, var(--vscode-terminal-ansiBlue)); }
 .kafka-tree-boolean { color: var(--vscode-charts-orange, var(--vscode-terminal-ansiYellow)); }
@@ -41,3 +41,17 @@
 .kafka-tree-value { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
 .kafka-send-preview { display: flex; flex-direction: column; gap: var(--rq-space-2); border: 1px dashed var(--border); border-radius: var(--radius); padding: var(--rq-space-2); }
 @media (prefers-reduced-motion: reduce) { .kafka-status-dot { animation: none !important; } }
+
+.kafka-body { display: flex; flex: 1 1 auto; min-height: 0; border-top: 1px solid var(--border); }
+.kafka-body[data-side='bottom'] { flex-direction: column; }
+.kafka-body .kafka-scroll { flex: 1 1 0; min-width: 0; min-height: 0; }
+.kafka-detail-slot { flex: 0 0 auto; min-width: 0; min-height: 0; display: flex; }
+.kafka-detail { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; background: var(--vscode-editor-background, var(--background)); }
+.kafka-detail-header { display: flex; align-items: center; gap: var(--rq-space-2); padding: var(--rq-space-1) var(--rq-space-2); border-bottom: 1px solid var(--border); }
+.kafka-detail-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--rq-mono); font-weight: 600; }
+.kafka-detail-actions { display: flex; flex: 0 0 auto; }
+.kafka-detail-body { display: flex; flex-direction: column; gap: var(--rq-space-2); flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--rq-space-2) var(--rq-space-3); }
+.kafka-resize-handle { flex: 0 0 auto; background: var(--border); transition: background 0.1s; touch-action: none; }
+.kafka-resize-handle[data-side='right'] { width: 5px; cursor: col-resize; }
+.kafka-resize-handle[data-side='bottom'] { height: 5px; cursor: row-resize; }
+.kafka-resize-handle:hover, .kafka-resize-handle:focus-visible { background: var(--vscode-focusBorder, var(--info)); }

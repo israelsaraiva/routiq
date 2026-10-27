@@ -95,6 +95,7 @@ describe('KafkaSession', () => {
       await emit('41');
       crash(new Error('broker dropped'));
       expect(statuses.at(-1)).toMatchObject({ state: 'reconnecting', attempt: 1 });
+      expect(statuses.at(-1)?.nextRetryAt).toBeGreaterThan(7);
       expect(session.isActive).toBe(true);
       await vi.advanceTimersByTimeAsync(30_000);
       expect(statuses.at(-1)).toEqual({ state: 'connected', detail: 'resumed after reconnect' });

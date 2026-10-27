@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- Kafka: resizable message detail panel, reconnect countdown, consumer lag in the status bar, refreshed screenshots.
+- Import: Insomnia and OpenAPI authentication mapping (basic, bearer, digest, API key, AWS, OAuth2) with inheritance and warnings.
+- OAuth2 client-credentials and password tokens persist in SecretStorage and refresh automatically.
+
 ## 0.5.0
 
 - Kafka UI redesign: status bar, collapsible options, dense message rows, flow connectors, theme-aware colours, empty states, keyboard shortcuts, send preview, unseen badge.

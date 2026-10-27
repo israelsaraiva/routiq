@@ -13,6 +13,7 @@ export interface KafkaHostState {
   collections: KafkaCollectionOption[];
   maxMessages: number;
   status: KafkaStatus;
+  totalLag?: number;
   messages: KafkaMessage[];
   logFile?: KafkaLogFile;
   produceResult?: KafkaProduceResult;
@@ -43,6 +44,8 @@ export function reduceHostMessage(state: KafkaHostState, message: KafkaHostMessa
       return { ...state, profiles: message.profiles, activeProfileId: message.activeProfileId };
     case 'kafkaStatus':
       return { ...state, status: message.status };
+    case 'kafkaLag':
+      return { ...state, totalLag: message.totalLag };
     case 'kafkaMessages':
       return { ...state, messages: message.replace ? message.messages : prependMessages(state.messages, message.messages, state.maxMessages) };
     case 'kafkaFullMessage':

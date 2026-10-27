@@ -1,17 +1,14 @@
-import { ArrowDown01Icon, ArrowRight01Icon, Copy01Icon, Delete02Icon, FloppyDiskIcon, RefreshIcon, SentIcon } from '@hugeicons/core-free-icons';
+import { Copy01Icon, Delete02Icon, FloppyDiskIcon, RefreshIcon, SentIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef } from 'react';
 import { matchingRules } from '../../core/kafka/highlightRules';
-import { parseMessage, serializeHeaders } from '../../core/kafka/messageParsing';
+import { parseMessage } from '../../core/kafka/messageParsing';
 import { TOMBSTONE_LABEL, isTombstone } from '../../core/kafka/tombstone';
 import { KafkaMessage } from '../../shared/types';
 import { Checkbox } from '../components/ui/checkbox';
 import { Badge } from '../components/ui/badge';
 import { IconButton } from '../components/IconButton';
-import { HighlightedText } from './HighlightedText';
 import { useMessageDisplay } from './MessageDisplayContext';
 import { useMessageNav } from './MessageNav';
-import { TruncationNotice } from './TruncationNotice';
-import { ValueViewer } from './ValueViewer';
 
 const LEVEL_VARIANT: Record<string, 'destructive' | 'warning' | 'info' | 'secondary'> = { error: 'destructive', warn: 'warning', warning: 'warning', info: 'info' };
 
@@ -37,15 +34,13 @@ function previewOf(message: KafkaMessage, tombstone: boolean): string {
 
 export function MessageCard({ message, selected, onSelectedChange, onCopy, onDelete, onUseForSend, onResend }: Props) {
   const { rules, onSaveAsRequest } = useMessageDisplay();
-  const { activeId, expandedId, toggleExpanded } = useMessageNav();
+  const { activeId, openId, open } = useMessageNav();
   const rowRef = useRef<HTMLElement>(null);
-  const expanded = expandedId === message.id;
+  const opened = openId === message.id;
   const active = activeId === message.id;
   const tombstone = isTombstone(message);
   const hits = useMemo(() => matchingRules(rules, message), [rules, message]);
   const parsed = parseMessage(message.value);
-  const headersText = serializeHeaders(message.headers);
-  const summary = message.structuredMessage ?? message.rawMessage;
 
   useEffect(() => {
     active && rowRef.current?.scrollIntoView?.({ block: 'nearest' });
@@ -57,21 +52,21 @@ export function MessageCard({ message, selected, onSelectedChange, onCopy, onDel
       className="kafka-message"
       data-testid="kafka-message"
       data-active={active}
-      data-expanded={expanded}
+      data-open={opened}
       data-tombstone={tombstone}
       style={hits[0] ? { borderLeftColor: hits[0].color } : undefined}
     >
       <header className="kafka-message-header">
         <span className="kafka-flow-marker" aria-hidden="true" />
         <Checkbox checked={selected} onCheckedChange={(checked) => onSelectedChange(checked === true)} aria-label="Select message" />
-        <IconButton
-          icon={expanded ? ArrowDown01Icon : ArrowRight01Icon}
-          label={expanded ? 'Hide details' : 'Show details'}
-          aria-expanded={expanded}
-          compact
-          onClick={() => toggleExpanded(message.id)}
-        />
-        <div className="kafka-row-main" onClick={() => toggleExpanded(message.id)}>
+        <div
+          className="kafka-row-main"
+          tabIndex={0}
+          aria-label="Show message details"
+          aria-current={opened}
+          onClick={() => open(message.id)}
+          onKeyDown={(event) => event.key === 'Enter' && open(message.id)}
+        >
           <time className="kafka-time" title={receivedAtTitle(message)}>{new Date(message.timestamp).toLocaleTimeString()}</time>
           {message.topic && <span className="kafka-chip kafka-chip-topic" title="Topic">{message.topic}</span>}
           {message.topic && <span className="kafka-chip kafka-chip-offset" title="Partition : offset">{`${message.partition}:${message.offset}`}</span>}
@@ -101,33 +96,10 @@ export function MessageCard({ message, selected, onSelectedChange, onCopy, onDel
           {onDelete && <IconButton icon={Delete02Icon} label="Delete message" compact onClick={() => onDelete(message)} />}
         </div>
       </header>
-      {expanded && (
-        <div className="kafka-message-details">
-          {parsed.errorMessage && <p className="kafka-error-box">{parsed.errorMessage}</p>}
-          {summary && (
-            <pre className="kafka-pre">
-              <HighlightedText text={summary} />
-            </pre>
-          )}
-          {message.key && <MessageSection title="Key" text={message.key} />}
-          {headersText && <MessageSection title="Headers" text={headersText} />}
-          <TruncationNotice message={message} />
-          <ValueViewer message={message} />
-        </div>
-      )}
     </article>
   );
 }
 
 function receivedAtTitle(message: KafkaMessage): string | undefined {
   return message.receivedAt ? `Record time ${new Date(message.timestamp).toLocaleString()} · received ${new Date(message.receivedAt).toLocaleString()}` : undefined;
-}
-
-function MessageSection({ title, text }: { title: string; text: string }) {
-  return (
-    <section>
-      <h4 className="kafka-section-title">{title}</h4>
-      <pre className="kafka-pre">{text}</pre>
-    </section>
-  );
 }

@@ -1,8 +1,10 @@
 import { Alert02Icon, CheckmarkCircle02Icon, Loading03Icon, MinusSignCircleIcon, PlayIcon, StopIcon } from '@hugeicons/core-free-icons';
 import { IconSvgElement } from '@hugeicons/react';
 import { KafkaConnectionState, KafkaMessage, KafkaStatus } from '../../shared/types';
+import { formatLag } from '../../core/kafka/lag';
 import { Icon } from '../Icon';
 import { Button } from '../components/ui/button';
+import { useNow } from './useNow';
 
 const RATE_WINDOW_MS = 10_000;
 
@@ -17,14 +19,23 @@ const PRESENTATION: Record<KafkaConnectionState, { label: string; icon: IconSvgE
 interface Props {
   status: KafkaStatus;
   messages: KafkaMessage[];
+  totalLag?: number;
   onConnect: () => void;
   onDisconnect: () => void;
   now?: number;
 }
 
-export function statusLabel(status: KafkaStatus): string {
+export function statusLabel(status: KafkaStatus, now: number = Date.now()): string {
   const { label } = PRESENTATION[status.state];
-  return status.state === 'reconnecting' && status.attempt ? `${label} (attempt ${status.attempt})` : label;
+  if (status.state !== 'reconnecting') {
+    return label;
+  }
+  const attempt = status.attempt ? ` (attempt ${status.attempt})` : '';
+  return status.nextRetryAt === undefined ? `${label}${attempt}` : `${label} in ${secondsUntil(status.nextRetryAt, now)}s${attempt}`;
+}
+
+function secondsUntil(timestamp: number, now: number): number {
+  return Math.max(0, Math.ceil((timestamp - now) / 1000));
 }
 
 export function messagesPerSecond(messages: KafkaMessage[], now: number): number {
@@ -36,21 +47,25 @@ function isActive(state: KafkaConnectionState): boolean {
   return state === 'connected' || state === 'connecting' || state === 'reconnecting';
 }
 
-export function ConnectionStatus({ status, messages, onConnect, onDisconnect, now = Date.now() }: Props) {
+export function ConnectionStatus({ status, messages, totalLag, onConnect, onDisconnect, now }: Props) {
   const { icon } = PRESENTATION[status.state];
-  const rate = messagesPerSecond(messages, now);
+  const counting = status.state === 'reconnecting' && status.nextRetryAt !== undefined;
+  const clock = useNow(counting);
+  const currentTime = now ?? (counting ? clock : Date.now());
+  const rate = messagesPerSecond(messages, currentTime);
 
   return (
     <div className="kafka-statusbar" data-testid="kafka-statusbar">
       <span className="kafka-status" data-state={status.state} role="status">
         <span className="kafka-status-dot" aria-hidden="true" />
         <Icon icon={icon} size={14} />
-        <span className="kafka-status-label">{statusLabel(status)}</span>
+        <span className="kafka-status-label">{statusLabel(status, currentTime)}</span>
         {status.detail && <span className="kafka-status-detail">{status.detail}</span>}
       </span>
       <span className="kafka-status-metrics">
         <span>{messages.length} received</span>
         {status.state === 'connected' && <span>{rate.toFixed(1)} msg/s</span>}
+        {status.state === 'connected' && totalLag !== undefined && <span title="Total consumer group lag">Lag {formatLag(totalLag)}</span>}
       </span>
       {isActive(status.state) ? (
         <Button variant="destructive" size="sm" onClick={onDisconnect}>

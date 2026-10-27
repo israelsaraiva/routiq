@@ -136,7 +136,83 @@ describe('importInsomnia bodies and auth', () => {
       type: 'oauth2', grant: 'password', tokenUrl: 'https://t', clientId: 'c', clientSecret: 's', scope: 'a b', username: 'u', password: 'p',
     });
     expect(importRequest({ authentication: { ...oauth, grantType: 'client_credentials' } }).auth).toMatchObject({ grant: 'client_credentials' });
-    expect(importRequest({ authentication: { ...oauth, grantType: 'authorization_code' } }).auth).toEqual({ type: 'none' });
+    expect(importRequest({ authentication: { ...oauth, grantType: 'implicit' } }).auth).toEqual({ type: 'none' });
+  });
+});
+
+describe('importInsomnia authentication mapping', () => {
+  function importWith(resources: Record<string, unknown>[], workspaceAuthentication?: unknown) {
+    const warnings: string[] = [];
+    const workspace = { _id: 'wrk_1', _type: 'workspace', name: 'Shop', authentication: workspaceAuthentication };
+    const [collection] = importInsomnia({ _type: 'export', __export_format: 4, resources: [workspace, ...resources] }, sequentialIds(), warnings);
+    return { collection, warnings };
+  }
+
+  const request = (id: string, parentId: string, authentication?: unknown) => ({
+    _id: id, _type: 'request', parentId, name: id, method: 'GET', url: 'https://shop.test/orders', ...(authentication === undefined ? {} : { authentication }),
+  });
+
+  it('maps authorization code with PKCE', () => {
+    const { collection } = importWith([
+      request('req_1', 'wrk_1', {
+        type: 'oauth2', grantType: 'authorization_code', accessTokenUrl: 'https://idp.test/oauth/token', authorizationUrl: 'https://idp.test/oauth/authorize',
+        clientId: 'shop-web', clientSecret: '', scope: 'openid orders', redirectUrl: 'http://localhost:8123/cb', usePkce: true,
+      }),
+    ]);
+    expect((collection.items[0] as RequestModel).auth).toEqual({
+      type: 'oauth2', grant: 'authorization_code', tokenUrl: 'https://idp.test/oauth/token', authUrl: 'https://idp.test/oauth/authorize', clientId: 'shop-web',
+      clientSecret: '', scope: 'openid orders', username: '', password: '', redirectUrl: 'http://localhost:8123/cb', usePkce: true,
+    });
+  });
+
+  it('maps digest, AWS IAM and bearer with a custom prefix', () => {
+    const { collection } = importWith([
+      request('digest', 'wrk_1', { type: 'digest', username: 'ada', password: '{{ _.password }}' }),
+      request('aws', 'wrk_1', { type: 'iam', accessKeyId: 'AKIDEXAMPLE', secretAccessKey: 'secret', sessionToken: 'tok', region: 'eu-west-1', service: 'execute-api' }),
+      request('prefixed', 'wrk_1', { type: 'bearer', token: '{{ _.token }}', prefix: 'Token' }),
+    ]);
+    const [digest, aws, prefixed] = collection.items as RequestModel[];
+    expect(digest.auth).toEqual({ type: 'digest', username: 'ada', password: '{{ _.password }}' });
+    expect(aws.auth).toEqual({ type: 'awsv4', accessKey: 'AKIDEXAMPLE', secretKey: 'secret', sessionToken: 'tok', region: 'eu-west-1', service: 'execute-api' });
+    expect(prefixed.auth).toEqual({ type: 'apikey', key: 'Authorization', value: 'Token {{ _.token }}', location: 'header' });
+  });
+
+  it('inherits authentication from the nearest folder and workspace, honouring explicit none', () => {
+    const { collection, warnings } = importWith(
+      [
+        { _id: 'fld_1', _type: 'request_group', parentId: 'wrk_1', name: 'Admin', authentication: { type: 'basic', username: 'root', password: 'pw' }, metaSortKey: 1 },
+        { _id: 'fld_2', _type: 'request_group', parentId: 'fld_1', name: 'Public', authentication: { type: 'none' }, metaSortKey: 3 },
+        { ...request('top', 'wrk_1', {}), metaSortKey: 2 },
+        { ...request('admin', 'fld_1'), metaSortKey: 1 },
+        { ...request('own', 'fld_1', { type: 'bearer', token: 'own-token' }), metaSortKey: 2 },
+        request('public', 'fld_2', {}),
+      ],
+      { type: 'bearer', token: 'workspace-token' },
+    );
+    const [adminFolder, top] = collection.items as [FolderModel, RequestModel];
+    const [admin, own, publicFolder] = adminFolder.items as [RequestModel, RequestModel, FolderModel];
+    expect(top.auth).toEqual({ type: 'bearer', token: 'workspace-token' });
+    expect(admin.auth).toEqual({ type: 'basic', username: 'root', password: 'pw' });
+    expect(own.auth).toEqual({ type: 'bearer', token: 'own-token' });
+    expect((publicFolder.items[0] as RequestModel).auth).toEqual({ type: 'none' });
+    expect(warnings).toEqual([]);
+  });
+
+  it.each([['hawk', 'Hawk'], ['ntlm', 'NTLM'], ['asap', 'ASAP (Atlassian)'], ['netrc', '.netrc'], ['oauth1', 'OAuth 1.0']])('warns about unsupported %s authentication', (type, name) => {
+    const { collection, warnings } = importWith([request('signed', 'wrk_1', { type })]);
+    expect((collection.items[0] as RequestModel).auth).toEqual({ type: 'none' });
+    expect(warnings).toEqual([`"signed": auth type "${type}" (${name}) is not supported and was skipped.`]);
+  });
+
+  it('warns once for an unsupported folder authentication shared by its requests', () => {
+    const { collection, warnings } = importWith([
+      { _id: 'fld_1', _type: 'request_group', parentId: 'wrk_1', name: 'Legacy', authentication: { type: 'ntlm', username: 'u' } },
+      request('a', 'fld_1', {}),
+      request('b', 'fld_1', {}),
+    ]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('"Legacy"');
+    expect((collection.items[0] as FolderModel).items).toHaveLength(2);
   });
 });
 

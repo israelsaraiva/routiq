@@ -76,12 +76,76 @@ describe('ConnectionStatus', () => {
     expect(screen.getByRole('button', { name: new RegExp(`^${action}$`) })).toBeTruthy();
   });
 
+  it('counts down to the next reconnect attempt', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    vi.setSystemTime(1_000_000);
+    render(<ConnectionStatus status={{ state: 'reconnecting', attempt: 3, nextRetryAt: 1_005_000 }} messages={[]} onConnect={vi.fn()} onDisconnect={vi.fn()} />);
+    expect(screen.getByRole('status').textContent).toContain('Reconnecting in 5s (attempt 3)');
+    act(() => void vi.advanceTimersByTime(2000));
+    expect(screen.getByRole('status').textContent).toContain('Reconnecting in 3s (attempt 3)');
+    vi.useRealTimers();
+  });
+
+  it('shows the total lag only while connected', () => {
+    const { rerender } = render(<ConnectionStatus status={{ state: 'connected' }} totalLag={42} messages={[]} onConnect={vi.fn()} onDisconnect={vi.fn()} />);
+    expect(screen.getByText('Lag 42')).toBeTruthy();
+    rerender(<ConnectionStatus status={{ state: 'connected' }} messages={[]} onConnect={vi.fn()} onDisconnect={vi.fn()} />);
+    expect(screen.queryByText(/^Lag/)).toBeNull();
+    rerender(<ConnectionStatus status={{ state: 'disconnected' }} totalLag={42} messages={[]} onConnect={vi.fn()} onDisconnect={vi.fn()} />);
+    expect(screen.queryByText(/^Lag/)).toBeNull();
+  });
+
   it('shows the message count and rate only while connected', () => {
     const { rerender } = render(<ConnectionStatus status={{ state: 'connected' }} messages={[message('1'), message('2')]} onConnect={vi.fn()} onDisconnect={vi.fn()} />);
     expect(screen.getByText('2 received')).toBeTruthy();
     expect(screen.getByText('0.2 msg/s')).toBeTruthy();
     rerender(<ConnectionStatus status={{ state: 'disconnected' }} messages={[message('1')]} onConnect={vi.fn()} onDisconnect={vi.fn()} />);
     expect(screen.queryByText(/msg\/s/)).toBeNull();
+  });
+});
+
+describe('Kafka message detail panel', () => {
+  const openFirst = () => fireEvent.click(screen.getAllByLabelText('Show message details')[0]);
+
+  it('follows the selection with arrows while open', () => {
+    render(<KafkaView />);
+    init([message('1', '{"n":1}'), message('2', '{"n":2}')]);
+    openFirst();
+    expect(screen.getByTestId('kafka-message-detail').textContent).toContain('0:1');
+    press('ArrowDown');
+    expect(screen.getByTestId('kafka-message-detail').textContent).toContain('0:2');
+  });
+
+  it('resizes with the keyboard and remembers the size', () => {
+    const { unmount } = render(<KafkaView />);
+    init([message('1')]);
+    openFirst();
+    const handle = screen.getByRole('separator', { name: 'Resize message detail' });
+    const before = Number(handle.getAttribute('aria-valuenow'));
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+    expect(Number(handle.getAttribute('aria-valuenow'))).toBeGreaterThan(before);
+    const resized = handle.getAttribute('aria-valuenow');
+    unmount();
+    render(<KafkaView />);
+    init([message('1')]);
+    openFirst();
+    expect(screen.getByRole('separator', { name: 'Resize message detail' }).getAttribute('aria-valuenow')).toBe(resized);
+  });
+
+  it('saves the open message as a request from the panel', () => {
+    render(<KafkaView />);
+    init([message('1')]);
+    openFirst();
+    fireEvent.click(screen.getByRole('button', { name: 'Save detail as Routiq request' }));
+    expect(postKafkaMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'kafkaSaveAsRequest' }));
+  });
+
+  it('closes from the close button', () => {
+    render(<KafkaView />);
+    init([message('1')]);
+    openFirst();
+    fireEvent.click(screen.getByRole('button', { name: 'Close detail' }));
+    expect(screen.queryByTestId('kafka-message-detail')).toBeNull();
   });
 });
 
@@ -155,10 +219,12 @@ describe('Kafka keyboard shortcuts', () => {
     const [first, second] = screen.getAllByTestId('kafka-message');
     expect(first.getAttribute('data-active')).toBe('false');
     expect(second.getAttribute('data-active')).toBe('true');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Show details' })[1]);
-    expect(second.getAttribute('data-expanded')).toBe('true');
+    fireEvent.click(screen.getAllByLabelText('Show message details')[1]);
+    expect(second.getAttribute('data-open')).toBe('true');
+    expect(screen.getByTestId('kafka-message-detail')).toBeTruthy();
     press('Escape');
-    expect(second.getAttribute('data-expanded')).toBe('false');
+    expect(second.getAttribute('data-open')).toBe('false');
+    expect(screen.queryByTestId('kafka-message-detail')).toBeNull();
   });
 
   it('ignores shortcuts while another tab is active', () => {

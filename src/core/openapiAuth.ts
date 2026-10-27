@@ -25,11 +25,32 @@ function activeRequirements(operation: Json, root: Json): Json[] {
   return Array.isArray(requirements) ? requirements.filter(isObject) : [];
 }
 
-function apiKeyAuth(scheme: Json): Auth | undefined {
-  if ((scheme.in !== 'header' && scheme.in !== 'query') || typeof scheme.name !== 'string' || scheme.name === '') {
+export interface OperationSecurity {
+  auth: Auth;
+  headers: KeyValue[];
+  warning?: string;
+}
+
+interface SchemeResolution {
+  auth: Auth;
+  headers: KeyValue[];
+}
+
+const NO_AUTH: Auth = { type: 'none' };
+
+function authOnly(auth: Auth | undefined): SchemeResolution | undefined {
+  return auth && { auth, headers: [] };
+}
+
+function apiKeyResolution(scheme: Json): SchemeResolution | undefined {
+  if (typeof scheme.name !== 'string' || scheme.name === '') {
     return undefined;
   }
-  return { type: 'apikey', key: scheme.name, value: placeholder(AUTH_VARIABLES.apiKey), location: scheme.in };
+  const value = placeholder(AUTH_VARIABLES.apiKey);
+  if (scheme.in === 'cookie') {
+    return { auth: NO_AUTH, headers: [{ key: 'Cookie', value: `${scheme.name}=${value}`, enabled: true }] };
+  }
+  return scheme.in === 'header' || scheme.in === 'query' ? authOnly({ type: 'apikey', key: scheme.name, value, location: scheme.in }) : undefined;
 }
 
 function httpAuth(scheme: Json): Auth | undefined {
@@ -50,10 +71,16 @@ function oauth2Flow(scheme: Json): { grant: OAuth2Grant; flow: Json } | undefine
     if (isObject(flows.clientCredentials)) {
       return { grant: 'client_credentials', flow: flows.clientCredentials };
     }
-    return isObject(flows.password) ? { grant: 'password', flow: flows.password } : undefined;
+    if (isObject(flows.password)) {
+      return { grant: 'password', flow: flows.password };
+    }
+    return isObject(flows.authorizationCode) ? { grant: 'authorization_code', flow: flows.authorizationCode } : undefined;
   }
   if (scheme.flow === 'application') {
     return { grant: 'client_credentials', flow: scheme };
+  }
+  if (scheme.flow === 'accessCode') {
+    return { grant: 'authorization_code', flow: scheme };
   }
   return scheme.flow === 'password' ? { grant: 'password', flow: scheme } : undefined;
 }
@@ -78,38 +105,48 @@ function oauth2Auth(scheme: Json, requiredScopes: unknown): Auth | undefined {
     scope: requestedScopes(requiredScopes, selected.flow),
     username: selected.grant === 'password' ? placeholder(AUTH_VARIABLES.username) : '',
     password: selected.grant === 'password' ? placeholder(AUTH_VARIABLES.password) : '',
+    ...(selected.grant === 'authorization_code' && { authUrl: String(selected.flow.authorizationUrl ?? ''), redirectUrl: '', usePkce: true }),
   };
 }
 
-function schemeToAuth(scheme: Json, requiredScopes: unknown): Auth | undefined {
+function schemeResolution(scheme: Json, requiredScopes: unknown): SchemeResolution | undefined {
   if (scheme.type === 'http') {
-    return httpAuth(scheme);
+    return authOnly(httpAuth(scheme));
   }
   if (scheme.type === 'basic') {
-    return basicAuth();
+    return authOnly(basicAuth());
   }
   if (scheme.type === 'oauth2') {
-    return oauth2Auth(scheme, requiredScopes);
+    return authOnly(oauth2Auth(scheme, requiredScopes));
   }
-  return scheme.type === 'apiKey' ? apiKeyAuth(scheme) : undefined;
+  return scheme.type === 'apiKey' ? apiKeyResolution(scheme) : undefined;
 }
 
-export function requiresUnsupportedSecurity(operation: Json, root: Json, auth: Auth): boolean {
-  return auth.type === 'none' && activeRequirements(operation, root).some((requirement) => Object.keys(requirement).length > 0);
+function unsupportedSecurityWarning(name: string, openIdSchemes: string[]): string {
+  if (openIdSchemes.length > 0) {
+    return `"${name}": OpenID Connect scheme "${openIdSchemes[0]}" is not supported; auth was left empty. Configure OAuth 2.0 manually.`;
+  }
+  return `"${name}": none of the declared security schemes is supported; auth was left empty.`;
 }
 
-export function resolveOperationAuth(operation: Json, root: Json, resolve: RefResolver): Auth {
+export function resolveOperationSecurity(operation: Json, root: Json, resolve: RefResolver, name: string): OperationSecurity {
   const schemes = securitySchemes(root);
-  for (const requirement of activeRequirements(operation, root)) {
-    for (const name of Object.keys(requirement)) {
-      const scheme = isObject(schemes[name]) ? resolve(schemes[name]) : undefined;
-      const auth = scheme && schemeToAuth(scheme, requirement[name]);
-      if (auth) {
-        return auth;
+  const requirements = activeRequirements(operation, root);
+  const openIdSchemes: string[] = [];
+  for (const requirement of requirements) {
+    for (const schemeName of Object.keys(requirement)) {
+      const scheme = isObject(schemes[schemeName]) ? resolve(schemes[schemeName]) : undefined;
+      if (scheme?.type === 'openIdConnect') {
+        openIdSchemes.push(schemeName);
+      }
+      const resolution = scheme && schemeResolution(scheme, requirement[schemeName]);
+      if (resolution) {
+        return resolution;
       }
     }
   }
-  return { type: 'none' };
+  const required = requirements.some((requirement) => Object.keys(requirement).length > 0);
+  return { auth: NO_AUTH, headers: [], ...(required && { warning: unsupportedSecurityWarning(name, openIdSchemes) }) };
 }
 
 function oauth2VariablesOf(auth: OAuth2Auth): string[] {
@@ -132,7 +169,11 @@ function variablesUsedBy(auth: Auth): string[] {
   }
 }
 
+function variablesUsedByHeaders(headers: KeyValue[]): string[] {
+  return Object.values(AUTH_VARIABLES).filter((name) => headers.some((header) => header.value.includes(placeholder(name))));
+}
+
 export function authVariablesFor(requests: RequestModel[]): KeyValue[] {
-  const names = new Set(requests.flatMap((request) => variablesUsedBy(request.auth)));
+  const names = new Set(requests.flatMap((request) => [...variablesUsedBy(request.auth), ...variablesUsedByHeaders(request.headers)]));
   return [...names].map((key) => ({ key, value: '', enabled: true }));
 }

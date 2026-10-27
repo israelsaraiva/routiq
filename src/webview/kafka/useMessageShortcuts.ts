@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 const TYPING_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 const ACTIVATING_TAGS = new Set(['BUTTON', 'A', 'SUMMARY']);
-const OWN_KEY_ROLES = new Set(['textbox', 'combobox', 'listbox', 'option', 'slider', 'tab', 'radio', 'menuitem', 'switch', 'checkbox', 'button']);
+const OWN_KEY_ROLES = new Set(['textbox', 'combobox', 'listbox', 'option', 'slider', 'tab', 'radio', 'menuitem', 'switch', 'checkbox', 'button', 'separator']);
 
 interface Shortcuts {
   active: boolean;

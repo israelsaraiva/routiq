@@ -170,3 +170,42 @@ describe('OAuth 2.0 authorization code flow', () => {
     expect(tokenCalls).toHaveLength(0);
   });
 });
+
+describe('OAuth 2.0 client credentials and password grants', () => {
+  function serviceAuth(overrides: Partial<OAuth2Auth> = {}): OAuth2Auth {
+    return {
+      type: 'oauth2',
+      grant: 'client_credentials',
+      tokenUrl: `${idpUrl}/token`,
+      clientId: 'service-client',
+      clientSecret: 'service-secret',
+      scope: 'orders.read',
+      username: '',
+      password: '',
+      ...overrides,
+    };
+  }
+
+  it('persists the token in the secret store without leaking credentials into the key', async () => {
+    await obtainToken(serviceAuth({ clientId: 'persisted-service' }), {}, 3000);
+    const [key] = [...secrets.keys()];
+    expect(key).toMatch(/^routiq\.oauth\.[0-9a-f]{64}$/);
+    expect(JSON.parse(secrets.get(key)!)).toMatchObject({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+  });
+
+  it('refreshes an expired token with its refresh token instead of repeating the grant', async () => {
+    const auth = serviceAuth({ clientId: 'refreshing-service' });
+    await obtainToken(auth, {}, 3000);
+    expect((await obtainToken(auth, {}, 3000)).accessToken).toBe('access-2');
+    expect(tokenCalls.map((call) => call.params.get('grant_type'))).toEqual(['client_credentials', 'refresh_token']);
+    expect(tokenCalls[1].params.get('refresh_token')).toBe('refresh-1');
+  });
+
+  it('requests a new token when the refresh token is rejected', async () => {
+    const auth = serviceAuth({ grant: 'password', clientId: 'rejected-service', username: 'ada', password: 'lovelace' });
+    await obtainToken(auth, {}, 3000);
+    rejectRefresh = true;
+    expect((await obtainToken(auth, {}, 3000)).accessToken).toBe('access-2');
+    expect(tokenCalls.map((call) => call.params.get('grant_type'))).toEqual(['password', 'refresh_token', 'password']);
+  });
+});

@@ -3,7 +3,7 @@ import { createCollection, createFolder, createRequest } from './factories';
 import { IdGenerator, generateId } from './ids';
 import { Json, isObject } from './jsonValues';
 import { ImportWarnings } from './importReport';
-import { authVariablesFor, requiresUnsupportedSecurity, resolveOperationAuth } from './openapiAuth';
+import { authVariablesFor, resolveOperationSecurity } from './openapiAuth';
 import { MULTIPART_CONTENT_TYPE, multipartBody, multipartFieldsFromSchema } from './openapiMultipart';
 import { RefResolver, createRefResolver, exampleValue } from './openapiSchemaExample';
 
@@ -199,18 +199,18 @@ function buildRequest(path: string, method: string, pathLevel: Json[], operation
   const parameters = mergeParameters(pathLevel, resolveParameters(operation.parameters, context));
   const body = buildBody(operation, parameters, context);
   const name = requestName(operation, method, path);
-  const auth = resolveOperationAuth(operation, context.root, context.resolve);
-  if (requiresUnsupportedSecurity(operation, context.root, auth)) {
-    context.warnings.push(`"${name}": none of the declared security schemes is supported; auth was left empty.`);
+  const security = resolveOperationSecurity(operation, context.root, context.resolve, name);
+  if (security.warning) {
+    context.warnings.push(security.warning);
   }
   return {
     ...createRequest(name, context.newId),
     method: method.toUpperCase() as HttpMethod,
     url: `{{${BASE_URL_VARIABLE}}}${toRequestPath(path)}`,
     params: parametersIn(parameters, 'query', context),
-    headers: [...contentTypeHeaders(body), ...parametersIn(parameters, 'header', context)],
+    headers: [...contentTypeHeaders(body), ...parametersIn(parameters, 'header', context), ...security.headers],
     body,
-    auth,
+    auth: security.auth,
   };
 }
 

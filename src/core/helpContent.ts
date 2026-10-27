@@ -255,8 +255,8 @@ const IMPORT_EXPORT: HelpSection = {
       title: 'Postman, Insomnia and OpenAPI',
       body: [
         'Postman v2.1 collections and environments keep folders, bodies, auth and variables; scripts are translated best-effort to the rq API and untranslatable lines are kept as comments with warnings.',
-        'OpenAPI / Swagger documents become one folder per tag with {{baseUrl}} URLs, example bodies and auth mapped from the security schemes.',
-        'Insomnia v4 exports map workspaces to collections, request groups to folders and environments to environments.',
+        'OpenAPI / Swagger documents become one folder per tag with {{baseUrl}} URLs, example bodies and auth mapped from the security schemes (bearer, basic, API key, OAuth 2.0; OpenID Connect is skipped with a warning). Secrets become {{variables}}.',
+        'Insomnia v4 exports map workspaces to collections, request groups to folders and environments to environments; authentication (including AWS IAM and OAuth 2.0 with PKCE) is inherited from folders and workspaces, and unsupported types such as Hawk, NTLM or OAuth 1.0 are reported as warnings.',
       ],
       keywords: ['postman', 'insomnia', 'openapi', 'swagger', 'yaml'],
     },

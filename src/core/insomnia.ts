@@ -1,6 +1,8 @@
-import { Auth, Collection, CollectionEntry, Environment, KeyValue, MultipartField, OAuth2Auth, RequestBody, RequestModel } from '../shared/types';
+import { Auth, Collection, CollectionEntry, Environment, KeyValue, MultipartField, RequestBody, RequestModel } from '../shared/types';
 import { createCollection, createFolder, createRequest } from './factories';
 import { IdGenerator, generateId } from './ids';
+import { ImportWarnings } from './importReport';
+import { resolveInsomniaAuth } from './insomniaAuth';
 import { Json, isObject, toMethod } from './jsonValues';
 import { withGraphqlKindWhenApplicable } from './graphql/kind';
 
@@ -92,53 +94,20 @@ function toBody(body: unknown): RequestBody {
   return { ...empty, type: textBodyType(String(body.mimeType ?? '')), text: body.text };
 }
 
-function toAuth(authentication: unknown): Auth {
-  if (!isObject(authentication) || authentication.disabled === true) {
-    return { type: 'none' };
-  }
-  if (authentication.type === 'bearer') {
-    return { type: 'bearer', token: String(authentication.token ?? '') };
-  }
-  if (authentication.type === 'basic') {
-    return { type: 'basic', username: String(authentication.username ?? ''), password: String(authentication.password ?? '') };
-  }
-  if (authentication.type === 'digest') {
-    return { type: 'digest', username: String(authentication.username ?? ''), password: String(authentication.password ?? '') };
-  }
-  if (authentication.type === 'apikey') {
-    return toApiKeyAuth(authentication);
-  }
-  return authentication.type === 'oauth2' ? toOAuth2Auth(authentication) : { type: 'none' };
+interface ImportContext {
+  resources: Json[];
+  newId: IdGenerator;
+  warnings: ImportWarnings;
 }
 
-function toApiKeyAuth(authentication: Json): Auth {
-  return {
-    type: 'apikey',
-    key: String(authentication.key ?? ''),
-    value: String(authentication.value ?? ''),
-    location: authentication.addTo === 'queryParams' ? 'query' : 'header',
-  };
+function resolveAuth(resource: Json, inherited: Auth, context: ImportContext): Auth {
+  const result = resolveInsomniaAuth(resource.authentication, String(resource.name ?? 'Untitled'), inherited);
+  context.warnings.push(...result.warnings);
+  return result.auth;
 }
 
-function toOAuth2Auth(authentication: Json): Auth {
-  const grant = authentication.grantType;
-  if (grant !== 'client_credentials' && grant !== 'password') {
-    return { type: 'none' };
-  }
-  const oauth: OAuth2Auth = {
-    type: 'oauth2',
-    grant,
-    tokenUrl: String(authentication.accessTokenUrl ?? ''),
-    clientId: String(authentication.clientId ?? ''),
-    clientSecret: String(authentication.clientSecret ?? ''),
-    scope: String(authentication.scope ?? ''),
-    username: String(authentication.username ?? ''),
-    password: String(authentication.password ?? ''),
-  };
-  return oauth;
-}
-
-function toRequest(resource: Json, newId: IdGenerator): RequestModel {
+function toRequest(resource: Json, inheritedAuth: Auth, context: ImportContext): RequestModel {
+  const { newId } = context;
   return withGraphqlKindWhenApplicable({
     ...createRequest(String(resource.name ?? 'Untitled'), newId),
     method: toMethod(resource.method),
@@ -146,7 +115,7 @@ function toRequest(resource: Json, newId: IdGenerator): RequestModel {
     params: toNamedPairs(resource.parameters),
     headers: toNamedPairs(resource.headers),
     body: toBody(resource.body),
-    auth: toAuth(resource.authentication),
+    auth: resolveAuth(resource, inheritedAuth, context),
   });
 }
 
@@ -155,13 +124,14 @@ function sortBySortKey(resources: Json[]): Json[] {
   return [...resources].sort((left, right) => sortKey(left) - sortKey(right));
 }
 
-function toEntries(resources: Json[], parentId: string, newId: IdGenerator): CollectionEntry[] {
-  return sortBySortKey(childrenOf(resources, parentId)).flatMap((resource): CollectionEntry[] => {
+function toEntries(parentId: string, inheritedAuth: Auth, context: ImportContext): CollectionEntry[] {
+  return sortBySortKey(childrenOf(context.resources, parentId)).flatMap((resource): CollectionEntry[] => {
     if (resource._type === 'request_group') {
-      const folder = createFolder(String(resource.name ?? 'Folder'), newId);
-      return [{ ...folder, items: toEntries(resources, String(resource._id), newId) }];
+      const folder = createFolder(String(resource.name ?? 'Folder'), context.newId);
+      const folderAuth = resolveAuth({ name: resource.name ?? 'Folder', authentication: resource.authentication }, inheritedAuth, context);
+      return [{ ...folder, items: toEntries(String(resource._id), folderAuth, context) }];
     }
-    return resource._type === 'request' ? [toRequest(resource, newId)] : [];
+    return resource._type === 'request' ? [toRequest(resource, inheritedAuth, context)] : [];
   });
 }
 
@@ -212,15 +182,17 @@ function importEnvironments(resources: Json[], workspaceId: string, collection: 
   collection.environments = subEnvironments.map((resource) => toEnvironment(resource, newId));
 }
 
-function importWorkspace(workspace: Json, resources: Json[], newId: IdGenerator): Collection {
-  const collection = createCollection(String(workspace.name ?? 'Insomnia Import'), newId);
+function importWorkspace(workspace: Json, context: ImportContext): Collection {
+  const collection = createCollection(String(workspace.name ?? 'Insomnia Import'), context.newId);
   const workspaceId = String(workspace._id);
-  collection.items = toEntries(resources, workspaceId, newId);
-  importEnvironments(resources, workspaceId, collection, newId);
+  const workspaceAuth = resolveAuth(workspace, { type: 'none' }, context);
+  collection.items = toEntries(workspaceId, workspaceAuth, context);
+  importEnvironments(context.resources, workspaceId, collection, context.newId);
   return collection;
 }
 
-export function importInsomnia(data: Json, newId: IdGenerator = generateId): Collection[] {
+export function importInsomnia(data: Json, newId: IdGenerator = generateId, warnings: ImportWarnings = []): Collection[] {
   const resources: Json[] = data.resources.filter(isObject);
-  return resourcesOfType(resources, 'workspace').map((workspace) => importWorkspace(workspace, resources, newId));
+  const context: ImportContext = { resources, newId, warnings };
+  return resourcesOfType(resources, 'workspace').map((workspace) => importWorkspace(workspace, context));
 }

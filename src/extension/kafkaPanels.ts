@@ -9,6 +9,7 @@ import { KafkaHostMessage, KafkaMessage, KafkaProduceRequest, KafkaProfileDraft,
 import { pickProtoFile } from './filePicker';
 import { KafkaAdminService, createKafkaAdmin } from './kafkaAdmin';
 import { KafkaAdminController } from './kafkaAdminController';
+import { KafkaLagMonitor, LagTarget } from './kafkaLagMonitor';
 import { KafkaClientFactory, createKafkaClient } from './kafkaClient';
 import { KafkaValueDecoder } from './kafkaDecoding';
 import { KafkaMessageFeatures } from './kafkaMessageFeatures';
@@ -74,6 +75,13 @@ class KafkaPanel implements vscode.Disposable {
   private messages: KafkaMessage[] = [];
   private readonly batcher = new MessageBatcher<KafkaMessage>((batch) => this.applyBatch(batch), intervalScheduler(FLUSH_DELAY_MS), this.settings.maxMessages);
   private status: KafkaStatus = { state: 'disconnected' };
+  private lagTarget: LagTarget | undefined;
+  private readonly lagMonitor = new KafkaLagMonitor({
+    intervalMs: this.settings.groupsRefreshSeconds * 1000,
+    timeoutMs: this.settings.adminTimeoutMs,
+    createAdmin: createKafkaAdmin,
+    onLag: (totalLag) => post(this.panel, { type: 'kafkaLag', totalLag }),
+  });
   private persistTimer: NodeJS.Timeout | undefined;
   private readonly subscriptions: vscode.Disposable[] = [];
 
@@ -135,6 +143,7 @@ class KafkaPanel implements vscode.Disposable {
 
   private handleDisposed(): void {
     this.batcher.discard();
+    this.lagMonitor.stop();
     clearTimeout(this.persistTimer);
     void this.persistNow();
     this.produceController.stopAll();
@@ -278,6 +287,7 @@ class KafkaPanel implements vscode.Disposable {
     this.panel.title = `Kafka — ${draft.name || 'Listener'}`;
     await this.dependencies.profiles.rememberLast(draft.id);
     await this.configureSchemaRegistry(draft);
+    this.lagTarget = config.groupId ? { config, groupId: config.groupId, topics: config.topics } : undefined;
     await this.session.connect(config);
   }
 
@@ -296,7 +306,17 @@ class KafkaPanel implements vscode.Disposable {
   private updateStatus(status: KafkaStatus): void {
     this.status = status;
     post(this.panel, { type: 'kafkaStatus', status });
+    this.syncLagMonitor(status);
     status.state === 'error' && void vscode.window.showErrorMessage(`Routiq Kafka: ${status.detail ?? 'connection failed'}`);
+  }
+
+  private syncLagMonitor(status: KafkaStatus): void {
+    if (status.state === 'connected' && this.lagTarget) {
+      this.lagMonitor.start(this.lagTarget);
+      return;
+    }
+    this.lagMonitor.stop();
+    post(this.panel, { type: 'kafkaLag' });
   }
 
   private enqueue(message: KafkaMessage): void {

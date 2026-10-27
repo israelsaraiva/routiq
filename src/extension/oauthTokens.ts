@@ -51,10 +51,8 @@ async function loadPersistedToken(cacheKey: string): Promise<OAuthToken | undefi
   }
 }
 
-async function persistToken(auth: OAuth2Auth, cacheKey: string, token: OAuthToken): Promise<void> {
-  if (auth.grant === 'authorization_code') {
-    await hooks?.tokenStore?.store(secretKeyFor(cacheKey), JSON.stringify(token));
-  }
+async function persistToken(cacheKey: string, token: OAuthToken): Promise<void> {
+  await hooks?.tokenStore?.store(secretKeyFor(cacheKey), JSON.stringify(token));
 }
 
 async function postTokenRequest(tokenRequest: TokenRequest, timeoutMs: number): Promise<OAuthToken> {
@@ -99,20 +97,20 @@ async function refreshedToken(auth: OAuth2Auth, values: Record<string, string>, 
   }
 }
 
-async function authorizationCodeToken(auth: OAuth2Auth, values: Record<string, string>, timeoutMs: number, previous?: OAuthToken): Promise<OAuthToken> {
-  const refreshed = previous && (await refreshedToken(auth, values, previous, timeoutMs));
-  if (refreshed) {
-    return refreshed;
-  }
+async function authorizationCodeToken(auth: OAuth2Auth, values: Record<string, string>, timeoutMs: number): Promise<OAuthToken> {
   const key = tokenCacheKey(auth, values);
   const pending = pendingBrowserFlows.get(key) ?? authorizeInBrowser(auth, values, timeoutMs).finally(() => pendingBrowserFlows.delete(key));
   pendingBrowserFlows.set(key, pending);
   return pending;
 }
 
-function requestToken(auth: OAuth2Auth, values: Record<string, string>, timeoutMs: number, previous?: OAuthToken): Promise<OAuthToken> {
+async function requestToken(auth: OAuth2Auth, values: Record<string, string>, timeoutMs: number, previous?: OAuthToken): Promise<OAuthToken> {
+  const refreshed = previous && (await refreshedToken(auth, values, previous, timeoutMs));
+  if (refreshed) {
+    return refreshed;
+  }
   return auth.grant === 'authorization_code'
-    ? authorizationCodeToken(auth, values, timeoutMs, previous)
+    ? authorizationCodeToken(auth, values, timeoutMs)
     : postTokenRequest(buildTokenRequest(auth, values), timeoutMs);
 }
 
@@ -123,14 +121,14 @@ export async function obtainToken(
   forceRefresh = false,
 ): Promise<OAuthToken> {
   const key = tokenCacheKey(auth, values);
-  const known = cachedTokens.get(key) ?? (auth.grant === 'authorization_code' ? await loadPersistedToken(key) : undefined);
+  const known = cachedTokens.get(key) ?? (await loadPersistedToken(key));
   if (known && !forceRefresh && isTokenFresh(known, Date.now())) {
     cachedTokens.set(key, known);
     return known;
   }
   const token = await requestToken(auth, values, timeoutMs, known);
   cachedTokens.set(key, token);
-  await persistToken(auth, key, token);
+  await persistToken(key, token);
   return token;
 }
 

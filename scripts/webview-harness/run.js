@@ -94,7 +94,7 @@ const answerAdmin = async (page, kind, build) => {
   await host(page, { ...build, result: { ...build.result, requestId: request.requestId } });
 };
 const kafkaTab = (page, name) => page.getByRole('tab', { name, exact: true }).click();
-const kafkaBase = async (page) => { await host(page, kfx.init); await host(page, kfx.templates); await settle(page); };
+const kafkaBase = async (page) => { await host(page, kfx.init); await host(page, kfx.templates); await host(page, { type: 'kafkaLag', totalLag: 1284 }); await settle(page); };
 const kafkaScenes = {
   messages: kafkaBase,
   send: async (page) => {

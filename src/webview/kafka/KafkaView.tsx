@@ -96,7 +96,7 @@ export function KafkaView() {
       </aside>
       <Tabs className="kafka-main" value={tab} onValueChange={setTab}>
         <p className="kafka-sr-only" aria-live="polite">{announcement}</p>
-        <ConnectionStatus status={host.status} messages={host.messages} onConnect={() => connect(draft)} onDisconnect={() => postKafkaMessage({ type: 'kafkaDisconnect' })} />
+        <ConnectionStatus status={host.status} totalLag={host.totalLag} messages={host.messages} onConnect={() => connect(draft)} onDisconnect={() => postKafkaMessage({ type: 'kafkaDisconnect' })} />
         <TabsList>
           <TabsTrigger value="messages">
             Messages

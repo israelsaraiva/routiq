@@ -2,6 +2,7 @@
 .kafka-sidebar { padding: var(--rq-space-3); overflow-y: auto; border-right: 1px solid var(--border); }
 .kafka-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .kafka-main .ui-tabs-content { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.kafka-main .ui-tabs-content[data-state='inactive'] { display: none; }
 .kafka-connection, .kafka-send { display: flex; flex-direction: column; gap: var(--rq-space-3); }
 .kafka-send { padding: var(--rq-space-3); overflow-y: auto; height: 100%; box-sizing: border-box; }
 .kafka-field { display: flex; flex-direction: column; gap: var(--rq-space-1); }
@@ -27,7 +28,6 @@
 .kafka-badges { display: flex; flex-wrap: wrap; flex: 1 1 auto; gap: var(--rq-space-1); min-width: 0; }
 .kafka-time { color: var(--muted-foreground); font-size: 0.85em; white-space: nowrap; }
 .kafka-message-actions { display: flex; margin-left: auto; }
-.kafka-message-details { display: flex; flex-direction: column; gap: var(--rq-space-2); padding: var(--rq-space-2); }
 .kafka-section-title { margin: 0 0 var(--rq-space-1); color: var(--muted-foreground); font-size: 0.85em; text-transform: uppercase; }
 .kafka-pre { margin: 0; padding: var(--rq-space-2); max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--rq-mono); background: var(--muted); border-radius: var(--radius); user-select: text; }
 .kafka-highlight { background: transparent; font-weight: 600; }

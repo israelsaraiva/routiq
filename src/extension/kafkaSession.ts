@@ -174,7 +174,8 @@ export class KafkaSession {
     const attempt = ++this.attempt;
     const delayMs = nextBackoffDelay(attempt, RECONNECT_BACKOFF, this.options.random);
     this.reconnecting = true;
-    this.events.onStatus({ state: 'reconnecting', attempt, detail: `Reconnecting (attempt ${attempt}) in ${Math.ceil(delayMs / 1000)}s: ${describeKafkaError(reason)}` });
+    const nextRetryAt = (this.options.now ?? Date.now)() + delayMs;
+    this.events.onStatus({ state: 'reconnecting', attempt, nextRetryAt, detail: describeKafkaError(reason) });
     this.reconnectTimer = setTimeout(() => void this.reconnect(generation), delayMs);
   }
 
@@ -183,7 +184,7 @@ export class KafkaSession {
     if (generation !== this.generation || !this.target) {
       return;
     }
-    this.events.onStatus({ state: 'reconnecting', attempt: this.attempt, detail: `Reconnecting (attempt ${this.attempt})…` });
+    this.events.onStatus({ state: 'reconnecting', attempt: this.attempt, detail: 'Retrying…' });
     try {
       await this.openConsumer(generation);
       this.reconnecting = false;

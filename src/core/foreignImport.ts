@@ -10,7 +10,7 @@ export function convertForeignFormat(detection: ImportDetection, newId: IdGenera
     return [importOpenApi(detection.data, newId, warnings)];
   }
   if (detection.kind === 'insomnia') {
-    return importInsomnia(detection.data, newId);
+    return importInsomnia(detection.data, newId, warnings);
   }
   return undefined;
 }

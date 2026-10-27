@@ -126,7 +126,7 @@ describe('insomnia private environments', () => {
 });
 
 describe('openapi oauth2 security', () => {
-  it('maps client credentials and password flows and skips unusable alternatives', () => {
+  it('maps client credentials, password and authorization code flows and skips unusable alternatives', () => {
     const collection = importOpenApi({
       openapi: '3.0.0',
       components: {
@@ -134,18 +134,22 @@ describe('openapi oauth2 security', () => {
           cc: { type: 'oauth2', flows: { clientCredentials: { tokenUrl: 'https://auth/token', scopes: { read: 'r', write: 'w' } } } },
           pw: { type: 'oauth2', flows: { password: { tokenUrl: 'https://auth/pw', scopes: {} } } },
           code: { type: 'oauth2', flows: { authorizationCode: { authorizationUrl: 'a', tokenUrl: 't', scopes: {} } } },
+          oidc: { type: 'openIdConnect', openIdConnectUrl: 'https://auth/.well-known/openid-configuration' },
+          implicit: { type: 'oauth2', flows: { implicit: { authorizationUrl: 'a', scopes: {} } } },
         },
       },
       paths: {
-        '/a': { get: { security: [{ code: [] }, { cc: ['read'] }] } },
+        '/a': { get: { security: [{ oidc: [] }, { implicit: [] }, { cc: ['read'] }] } },
         '/b': { get: { security: [{ pw: [] }] } },
         '/c': { get: { security: [{ code: [] }] } },
+        '/d': { get: { security: [{ implicit: [] }] } },
       },
     }, undefined, []);
-    const [a, b, c] = requestsOf(collection);
+    const [a, b, c, d] = requestsOf(collection);
     expect(a.auth).toMatchObject({ type: 'oauth2', grant: 'client_credentials', tokenUrl: 'https://auth/token', scope: 'read', clientId: '{{clientId}}' });
     expect(b.auth).toMatchObject({ grant: 'password', username: '{{username}}' });
-    expect(c.auth.type).toBe('none');
+    expect(c.auth).toMatchObject({ grant: 'authorization_code', authUrl: 'a', usePkce: true });
+    expect(d.auth.type).toBe('none');
     expect(collection.variables.map((variable) => variable.key)).toEqual(expect.arrayContaining(['clientId', 'clientSecret', 'username', 'password']));
   });
 });
