@@ -68,8 +68,8 @@ export function MessageCard({ message, selected, onSelectedChange, onCopy, onDel
           onKeyDown={(event) => event.key === 'Enter' && open(message.id)}
         >
           <time className="kafka-time" title={receivedAtTitle(message)}>{new Date(message.timestamp).toLocaleTimeString()}</time>
-          {message.topic && <span className="kafka-chip kafka-chip-topic" title="Topic">{message.topic}</span>}
-          {message.topic && <span className="kafka-chip kafka-chip-offset" title="Partition : offset">{`${message.partition}:${message.offset}`}</span>}
+          {message.topic && <span className="kafka-chip kafka-chip-topic" title={message.topic}>{message.topic}</span>}
+          {message.topic && <span className="kafka-chip kafka-chip-offset" title={`partition ${message.partition}, offset ${message.offset}`}>{`${message.partition}:${message.offset}`}</span>}
           {tombstone && <span className="kafka-chip kafka-chip-tombstone">tombstone</span>}
           {message.key && <span className="kafka-key" title={message.key}>{message.key}</span>}
           <span className="kafka-preview" data-tombstone={tombstone}>{previewOf(message, tombstone)}</span>

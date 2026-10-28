@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.4
+
+- Kafka: removed the redundant saved-connection picker (connections live in the sidebar); message chip tooltips show the full topic name and partition/offset.
+
 ## 0.6.3
 
 - Kafka sidebar: essential fields stay visible, everything else moved into a collapsible Advanced section (state remembered, badge when customised, auto-opens for SASL/SSL).

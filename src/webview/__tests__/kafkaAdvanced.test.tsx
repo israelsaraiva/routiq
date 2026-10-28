@@ -19,7 +19,6 @@ function renderForm(profile: KafkaProfileDraft, status: KafkaStatus = { state: '
       status={status}
       hasStoredPassword={false}
       onChange={() => undefined}
-      onSelectProfile={() => undefined}
       onSave={() => undefined}
       onDelete={() => undefined}
     />,
@@ -43,6 +42,14 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+
+describe('ConnectionForm', () => {
+  it('does not offer a saved connection picker but keeps the name editable', () => {
+    renderForm(draft());
+    expect(screen.queryByRole('combobox', { name: 'Saved connection' })).toBeNull();
+    expect(screen.getByLabelText('Name')).toBeTruthy();
+  });
+});
 
 describe('ConnectionForm advanced section', () => {
   it('keeps essentials visible and hides the rest by default', () => {
@@ -89,7 +96,6 @@ describe('ConnectionForm advanced section', () => {
         status={{ state: 'error', detail: 'TLS error: bad certificate' }}
         hasStoredPassword={false}
         onChange={() => undefined}
-        onSelectProfile={() => undefined}
         onSave={() => undefined}
         onDelete={() => undefined}
       />,

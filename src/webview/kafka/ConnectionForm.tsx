@@ -28,26 +28,19 @@ interface Props {
   status: KafkaStatus;
   hasStoredPassword: boolean;
   onChange: (draft: KafkaProfileDraft) => void;
-  onSelectProfile: (profileId: string) => void;
   onSave: () => void;
   onDelete: () => void;
 }
 
-export function ConnectionForm({ draft, profiles, collections, status, hasStoredPassword, onChange, onSelectProfile, onSave, onDelete }: Props) {
+export function ConnectionForm({ draft, profiles, collections, status, hasStoredPassword, onChange, onSave, onDelete }: Props) {
   const patch = (changes: Partial<KafkaProfileDraft>) => onChange({ ...draft, ...changes });
   const isConnected = status.state === 'connected' || status.state === 'connecting' || status.state === 'reconnecting';
-  const profileOptions = profiles.map((profile) => ({ value: profile.id, label: profile.name }));
   const collectionOptions = [{ value: NO_COLLECTION, label: 'None' }, ...collections.map((collection) => ({ value: collection.id, label: collection.name }))];
 
   const forceOpenKey = forceOpenKeyOf(draft, status);
 
   return (
     <form className="kafka-connection" onSubmit={(event) => event.preventDefault()}>
-      {profiles.length > 0 && (
-        <FormField label="Saved connection">
-          {() => <OptionSelect value={draft.id} options={profileOptions} onValueChange={onSelectProfile} ariaLabel="Saved connection" />}
-        </FormField>
-      )}
       <FormField label="Name">{(id) => <Input id={id} value={draft.name} onChange={(event) => patch({ name: event.target.value })} />}</FormField>
       <FormField label="Broker(s)">
         {(id) => <Input id={id} value={draft.brokers} placeholder={DEFAULT_BROKER} disabled={isConnected} onChange={(event) => patch({ brokers: event.target.value })} />}

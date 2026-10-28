@@ -11,6 +11,7 @@ vi.mock('../vscodeApi', () => ({ postKafkaMessage: vi.fn() }));
 import { CompareDialog } from '../kafka/CompareDialog';
 import { FilterBar } from '../kafka/FilterBar';
 import { JsonTree } from '../kafka/JsonTree';
+import { MessageCard } from '../kafka/MessageCard';
 import { RulesDialog } from '../kafka/RulesDialog';
 
 class StubResizeObserver {
@@ -100,5 +101,20 @@ describe('CompareDialog', () => {
     const compare = screen.getByTestId('kafka-compare');
     expect(compare.querySelectorAll('[data-diff="removed"]').length).toBeGreaterThan(0);
     expect(compare.querySelectorAll('[data-diff="added"]').length).toBeGreaterThan(0);
+  });
+});
+
+describe('MessageCard chip titles', () => {
+  const chipMessage = { ...message('42', '{}'), topic: 'orders.created.v1', partition: 0, offset: '42' } as KafkaMessage;
+
+  it('shows the full topic name as the topic chip title', () => {
+    render(<MessageCard message={chipMessage} selected={false} onSelectedChange={() => undefined} onCopy={() => undefined} />);
+    const chip = screen.getByText('orders.created.v1');
+    expect(chip.getAttribute('title')).toBe('orders.created.v1');
+  });
+
+  it('describes partition and offset in the offset chip title', () => {
+    render(<MessageCard message={chipMessage} selected={false} onSelectedChange={() => undefined} onCopy={() => undefined} />);
+    expect(screen.getByText('0:42').getAttribute('title')).toBe('partition 0, offset 42');
   });
 });

@@ -164,8 +164,6 @@ class KafkaPanel implements vscode.Disposable {
         return this.saveProfile(message.profile);
       case 'kafkaDeleteProfile':
         return this.deleteProfile(message.profileId);
-      case 'kafkaSelectProfile':
-        return this.selectProfile(message.profileId);
       case 'kafkaConnect':
         return this.connect(message.profile);
       case 'kafkaDisconnect':
@@ -242,17 +240,6 @@ class KafkaPanel implements vscode.Disposable {
     await this.dependencies.profiles.remove(profileId);
     await this.dependencies.messageSettings.removeRegistryPassword(profileId);
     await this.dependencies.history.saveMessages(profileId, [], 0);
-  }
-
-  private async selectProfile(profileId: string): Promise<void> {
-    if (this.session.isActive) {
-      return;
-    }
-    this.activeProfileId = profileId;
-    this.panel.title = `Kafka — ${this.dependencies.profiles.get(profileId)?.name ?? 'Listener'}`;
-    this.replaceMessages(this.dependencies.history.messages(profileId));
-    await this.configureSchemaRegistry(this.dependencies.profiles.get(profileId));
-    await this.postProfiles();
   }
 
   private async configureSchemaRegistry(profile: KafkaProfileDraft | undefined): Promise<void> {

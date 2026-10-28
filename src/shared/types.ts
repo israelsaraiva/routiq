@@ -504,7 +504,6 @@ export type KafkaWebviewMessage =
   | { type: 'kafkaReady' }
   | { type: 'kafkaSaveProfile'; profile: KafkaProfileDraft }
   | { type: 'kafkaDeleteProfile'; profileId: string }
-  | { type: 'kafkaSelectProfile'; profileId: string }
   | { type: 'kafkaConnect'; profile: KafkaProfileDraft }
   | { type: 'kafkaDisconnect' }
   | { type: 'kafkaProduce'; request: KafkaProduceRequest }

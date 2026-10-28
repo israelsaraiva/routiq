@@ -89,7 +89,6 @@ export function KafkaView() {
           status={host.status}
           hasStoredPassword={activeProfile?.hasSaslPassword ?? false}
           onChange={setDraft}
-          onSelectProfile={(profileId) => postKafkaMessage({ type: 'kafkaSelectProfile', profileId })}
           onSave={() => postKafkaMessage({ type: 'kafkaSaveProfile', profile: draft })}
           onDelete={() => postKafkaMessage({ type: 'kafkaDeleteProfile', profileId: draft.id })}
         />
