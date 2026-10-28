@@ -13,6 +13,7 @@
 .kafka-error-box { padding: var(--rq-space-2); border: 1px solid var(--destructive); border-radius: var(--radius); }
 .kafka-success { color: var(--success); margin: 0; }
 .kafka-messages { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.kafka-messages > :not(.kafka-body) { flex-shrink: 0; }
 .kafka-toolbar, .kafka-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kafka-gap-2); padding: var(--kafka-gap-2) var(--kafka-pad-x); }
 .kafka-stats { padding-block: var(--kafka-gap-2); min-height: 22px; }
 .kafka-stats .ui-badge { min-height: 22px; box-sizing: border-box; display: inline-flex; align-items: center; }

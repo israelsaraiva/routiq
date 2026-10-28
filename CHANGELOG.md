@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.7
+
+- Kafka Messages tab: the message list no longer overlaps the stats and controls row when it wraps.
+
 ## 0.6.6
 
 - Kafka Messages tab: Collapse all / Expand all, Select all and Clear selection.
