@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.3
+
+- Kafka sidebar: essential fields stay visible, everything else moved into a collapsible Advanced section (state remembered, badge when customised, auto-opens for SASL/SSL).
+
 ## 0.6.2
 
 - Kafka UI: consistent spacing scale, aligned toolbar rows, tab and status bar polish, saved-filter controls shown only when relevant.

@@ -7,12 +7,19 @@ import { LabeledSwitch } from '../components/LabeledSwitch';
 import { OptionSelect } from '../components/OptionSelect';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { AdvancedSection } from './AdvancedSection';
 import { AuthFields, storedSecretsOf } from './AuthFields';
+import { hasAdvancedValues, isAdvancedError, usesSecuredTransport } from './advancedFields';
 import { FormField } from './FormField';
 import { ProtobufFields } from './ProtobufFields';
 import { StartPositionFields } from './StartPositionFields';
 
 const NO_COLLECTION = '__none__';
+
+function forceOpenKeyOf(draft: KafkaProfileDraft, status: KafkaStatus): string | null {
+  if (isAdvancedError(status)) return `error:${status.detail}`;
+  return usesSecuredTransport(draft) ? `profile:${draft.id}` : null;
+}
 
 interface Props {
   draft: KafkaProfileDraft;
@@ -31,6 +38,8 @@ export function ConnectionForm({ draft, profiles, collections, status, hasStored
   const isConnected = status.state === 'connected' || status.state === 'connecting' || status.state === 'reconnecting';
   const profileOptions = profiles.map((profile) => ({ value: profile.id, label: profile.name }));
   const collectionOptions = [{ value: NO_COLLECTION, label: 'None' }, ...collections.map((collection) => ({ value: collection.id, label: collection.name }))];
+
+  const forceOpenKey = forceOpenKeyOf(draft, status);
 
   return (
     <form className="kafka-connection" onSubmit={(event) => event.preventDefault()}>
@@ -53,38 +62,40 @@ export function ConnectionForm({ draft, profiles, collections, status, hasStored
         {(id) => <Input id={id} value={draft.groupId} placeholder="auto-generated" disabled={isConnected} onChange={(event) => patch({ groupId: event.target.value })} />}
       </FormField>
       <StartPositionFields draft={draft} disabled={isConnected} onChange={patch} />
-      <LabeledSwitch
-        label="Read-only (never produce)"
-        title="Disables Send, Resend and Replay for this connection"
-        checked={draft.readOnly === true}
-        onCheckedChange={(readOnly) => patch({ readOnly })}
-      />
-      <AuthFields
-        draft={draft}
-        storedSecrets={storedSecretsOf(profiles.find((profile) => profile.id === draft.id))}
-        hasStoredPassword={hasStoredPassword}
-        onChange={onChange}
-      />
-      <FormField label="Schema Registry URL (optional)">
-        {(id) => <Input id={id} value={draft.schemaRegistryUrl ?? ''} placeholder="http://localhost:8081" onChange={(event) => patch({ schemaRegistryUrl: event.target.value })} />}
-      </FormField>
-      <FormField label="Schema Registry username">
-        {(id) => <Input id={id} value={draft.schemaRegistryUsername ?? ''} onChange={(event) => patch({ schemaRegistryUsername: event.target.value })} />}
-      </FormField>
-      <FormField label="Schema Registry password">
-        {(id) => <Input id={id} type="password" value={draft.schemaRegistryPassword ?? ''} onChange={(event) => patch({ schemaRegistryPassword: event.target.value })} />}
-      </FormField>
-      <ProtobufFields draft={draft} onChange={patch} />
-      <FormField label="Variables from collection">
-        {() => (
-          <OptionSelect
-            value={draft.variablesCollectionId ?? NO_COLLECTION}
-            options={collectionOptions}
-            onValueChange={(value) => patch({ variablesCollectionId: value === NO_COLLECTION ? undefined : value })}
-            ariaLabel="Variables collection"
-          />
-        )}
-      </FormField>
+      <AdvancedSection forceOpenKey={forceOpenKey} hasValues={hasAdvancedValues(draft)}>
+        <LabeledSwitch
+          label="Read-only (never produce)"
+          title="Disables Send, Resend and Replay for this connection"
+          checked={draft.readOnly === true}
+          onCheckedChange={(readOnly) => patch({ readOnly })}
+        />
+        <AuthFields
+          draft={draft}
+          storedSecrets={storedSecretsOf(profiles.find((profile) => profile.id === draft.id))}
+          hasStoredPassword={hasStoredPassword}
+          onChange={onChange}
+        />
+        <FormField label="Schema Registry URL (optional)">
+          {(id) => <Input id={id} value={draft.schemaRegistryUrl ?? ''} placeholder="http://localhost:8081" onChange={(event) => patch({ schemaRegistryUrl: event.target.value })} />}
+        </FormField>
+        <FormField label="Schema Registry username">
+          {(id) => <Input id={id} value={draft.schemaRegistryUsername ?? ''} onChange={(event) => patch({ schemaRegistryUsername: event.target.value })} />}
+        </FormField>
+        <FormField label="Schema Registry password">
+          {(id) => <Input id={id} type="password" value={draft.schemaRegistryPassword ?? ''} onChange={(event) => patch({ schemaRegistryPassword: event.target.value })} />}
+        </FormField>
+        <ProtobufFields draft={draft} onChange={patch} />
+        <FormField label="Variables from collection">
+          {() => (
+            <OptionSelect
+              value={draft.variablesCollectionId ?? NO_COLLECTION}
+              options={collectionOptions}
+              onValueChange={(value) => patch({ variablesCollectionId: value === NO_COLLECTION ? undefined : value })}
+              ariaLabel="Variables collection"
+            />
+          )}
+        </FormField>
+      </AdvancedSection>
       <div className="kafka-actions">
         <Button variant="secondary" onClick={onSave}>
           <Icon icon={FloppyDiskIcon} /> Save

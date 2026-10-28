@@ -46,3 +46,8 @@
 .kafka-truncation { margin: 0; color: var(--muted-foreground); font-size: 0.9em; }
 .kafka-inline-field { display: flex; gap: var(--rq-space-2); align-items: center; }
 .kafka-inline-field > input { flex: 1; min-width: 0; }
+.kafka-advanced { display: flex; flex-direction: column; gap: var(--rq-space-3); }
+.kafka-advanced-toggle { display: inline-flex; align-items: center; gap: var(--rq-space-2); align-self: flex-start; padding: 2px 4px; background: none; border: 0; border-radius: 4px; color: inherit; font: inherit; cursor: pointer; }
+.kafka-advanced-toggle:focus-visible { outline: 1px solid var(--vscode-focusBorder); }
+.kafka-advanced-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--vscode-focusBorder); }
+.kafka-advanced-body { display: flex; flex-direction: column; gap: var(--rq-space-3); }
