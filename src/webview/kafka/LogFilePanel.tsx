@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { groupByFlow } from '../../core/kafka/flowGroups';
 import { importLogFile } from '../../core/kafka/logImport';
 import { LogFilterType, filterBySearchQuery, filterByType, sortByTimestamp, uniqueContainers, uniqueLevels } from '../../core/kafka/logFilters';
-import { KafkaLogFile } from '../../shared/types';
+import { KafkaLogFile, KafkaMessage } from '../../shared/types';
 import { Icon } from '../Icon';
 import { LabeledSwitch } from '../components/LabeledSwitch';
 import { OptionSelect } from '../components/OptionSelect';
