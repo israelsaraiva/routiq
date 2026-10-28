@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.9
+
+- Kafka Log file tab shows a flat message list instead of flow groups.
+
 ## 0.6.8
 
 - Kafka JSON tree: keys are plain themed text instead of light chips, and text can be selected and copied.

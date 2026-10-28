@@ -118,13 +118,15 @@ describe('LogFilePanel browsing controls', () => {
     render(<LogFilePanel logFile={{ name: 'export.csv', text: csv }} />);
   };
 
-  it('collapses and expands every flow', () => {
+  it('lists entries flat without flow headers and toggles oldest first', () => {
     renderTwoFlows();
-    expect(screen.getAllByTestId('kafka-message')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
-    expect(screen.queryAllByTestId('kafka-message')).toHaveLength(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
-    expect(screen.getAllByTestId('kafka-message')).toHaveLength(2);
+    expect(screen.queryByTestId('kafka-flow')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Collapse all' })).toBeNull();
+    expect(screen.queryByText('2 flows')).toBeNull();
+    const keyOrder = () => screen.getAllByTestId('kafka-message').map((row) => (row.textContent?.includes('key-a') ? 'a' : 'b'));
+    expect(keyOrder()).toEqual(['b', 'a']);
+    fireEvent.click(screen.getByRole('switch', { name: 'Oldest first' }));
+    expect(keyOrder()).toEqual(['a', 'b']);
   });
 
   it('selects all visible entries and clears the selection', () => {
