@@ -1,5 +1,5 @@
 import { ArrowDown01Icon, ArrowRight01Icon, Copy01Icon, Delete02Icon, Download01Icon } from '@hugeicons/core-free-icons';
-import { Fragment, useState } from 'react';
+import { Fragment, useCallback, useState } from 'react';
 import { formatTimeDelta } from '../../core/kafka/timeDelta';
 import { FlowGroup, flowDurationSeconds, isLinkedFlow } from '../../core/kafka/flowGroups';
 import { KafkaMessage } from '../../shared/types';
@@ -16,20 +16,39 @@ export interface FlowActions extends MessageActions {
   onDeleteFlow?: (group: FlowGroup) => void;
 }
 
+export interface CollapsedFlows {
+  collapsedIds: Set<string>;
+  toggle: (flowId: string) => void;
+  collapseAll: (flowIds: string[]) => void;
+  expandAll: () => void;
+}
+
+export function useCollapsedFlows(): CollapsedFlows {
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  const toggle = useCallback(
+    (flowId: string) =>
+      setCollapsedIds((current) => {
+        const next = new Set(current);
+        next.delete(flowId) || next.add(flowId);
+        return next;
+      }),
+    [],
+  );
+  const collapseAll = useCallback((flowIds: string[]) => setCollapsedIds(new Set(flowIds)), []);
+  const expandAll = useCallback(() => setCollapsedIds(new Set()), []);
+  return { collapsedIds, toggle, collapseAll, expandAll };
+}
+
 interface Props extends FlowActions {
   groups: FlowGroup[];
+  collapsedFlows?: CollapsedFlows;
   selectedIds: Set<string>;
   onToggleSelected: (messageIds: string[], selected: boolean) => void;
 }
 
-export function FlowGroupList({ groups, selectedIds, onToggleSelected, onCopyFlow, onDownloadFlow, onDeleteFlow, ...messageActions }: Props) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const toggleCollapsed = (flowId: string) =>
-    setCollapsed((current) => {
-      const next = new Set(current);
-      next.delete(flowId) || next.add(flowId);
-      return next;
-    });
+export function FlowGroupList({ groups, collapsedFlows, selectedIds, onToggleSelected, onCopyFlow, onDownloadFlow, onDeleteFlow, ...messageActions }: Props) {
+  const ownCollapsedFlows = useCollapsedFlows();
+  const { collapsedIds, toggle: toggleCollapsed } = collapsedFlows ?? ownCollapsedFlows;
 
   return (
     <VirtualList
@@ -40,9 +59,9 @@ export function FlowGroupList({ groups, selectedIds, onToggleSelected, onCopyFlo
         <FlowGroupSection
           key={group.flowId}
           group={group}
-          collapsed={collapsed.has(group.flowId)}
-          selectedIds={selectedIds}
+          collapsed={collapsedIds.has(group.flowId)}
           onToggleCollapsed={() => toggleCollapsed(group.flowId)}
+          selectedIds={selectedIds}
           onToggleSelected={onToggleSelected}
           onCopyFlow={onCopyFlow}
           onDownloadFlow={onDownloadFlow}

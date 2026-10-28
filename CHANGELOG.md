@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.5
+
+- Kafka Log file tab: collapse/expand all, select all/clear, and a resizable detail panel on the right.
+
 ## 0.6.4
 
 - Kafka: removed the redundant saved-connection picker (connections live in the sidebar); message chip tooltips show the full topic name and partition/offset.

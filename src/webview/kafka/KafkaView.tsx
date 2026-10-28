@@ -138,7 +138,7 @@ export function KafkaView() {
           />
         </TabsContent>
         <TabsContent value="log" forceMount>
-          <LogFilePanel logFile={host.logFile} />
+          <LogFilePanel logFile={host.logFile} active={tab === 'log'} />
         </TabsContent>
         <AdminTabContents admin={admin} draft={draft} onDraftChange={setDraft} onShowMessages={() => setTab('messages')} />
       </Tabs>

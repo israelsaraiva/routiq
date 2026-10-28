@@ -107,3 +107,43 @@ describe('LogFilePanel CSV import', () => {
     expect(screen.getAllByText('csv-key-2').length).toBeGreaterThan(0);
   });
 });
+
+describe('LogFilePanel browsing controls', () => {
+  const renderTwoFlows = () => {
+    const csv = exportAsCsv([
+      message({ id: 'a-0-1', flowId: 'flow-a', key: 'key-a', offset: '1' }),
+      message({ id: 'b-0-2', flowId: 'flow-b', key: 'key-b', offset: '2', timestamp: 1700000001000 }),
+    ]);
+    render(<LogFilePanel logFile={{ name: 'export.csv', text: csv }} />);
+  };
+
+  it('collapses and expands every flow', () => {
+    renderTwoFlows();
+    expect(screen.getAllByTestId('kafka-message')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+    expect(screen.queryAllByTestId('kafka-message')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+    expect(screen.getAllByTestId('kafka-message')).toHaveLength(2);
+  });
+
+  it('selects all visible entries and clears the selection', () => {
+    renderTwoFlows();
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByText('2 selected')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    expect(screen.queryByText('2 selected')).toBeNull();
+  });
+
+  it('opens the detail panel on click, moves with arrow keys and closes with Escape', () => {
+    renderTwoFlows();
+    expect(screen.queryByTestId('kafka-message-detail')).toBeNull();
+    const rows = screen.getAllByLabelText('Show message details');
+    fireEvent.click(rows[0]);
+    expect(screen.getByTestId('kafka-message-detail')).toBeTruthy();
+    expect(screen.getByRole('separator', { name: 'Resize message detail' })).toBeTruthy();
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' });
+    expect(screen.getAllByTestId('kafka-message')[1].getAttribute('data-open')).toBe('true');
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByTestId('kafka-message-detail')).toBeNull();
+  });
+});
