@@ -10,6 +10,7 @@ vi.mock('../vscodeApi', () => ({ postKafkaMessage: vi.fn() }));
 import { IncreasePartitions } from '../kafka/admin/IncreasePartitions';
 import { TopicConfigEditor } from '../kafka/admin/TopicConfigEditor';
 import { LogFilePanel } from '../kafka/LogFilePanel';
+import { MessagesPanel } from '../kafka/MessagesPanel';
 import { ValueViewer } from '../kafka/ValueViewer';
 
 class StubResizeObserver {
@@ -145,5 +146,34 @@ describe('LogFilePanel browsing controls', () => {
     expect(screen.getAllByTestId('kafka-message')[1].getAttribute('data-open')).toBe('true');
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(screen.queryByTestId('kafka-message-detail')).toBeNull();
+  });
+});
+
+describe('MessagesPanel browsing controls', () => {
+  const renderTwoFlows = () =>
+    render(
+      <MessagesPanel
+        connected
+        onUseForSend={() => undefined}
+        onResend={() => undefined}
+        messages={[message({ id: 'a-0-1', flowId: 'flow-a', offset: '1' }), message({ id: 'b-0-2', flowId: 'flow-b', offset: '2' })]}
+      />,
+    );
+
+  it('collapses and expands every flow', () => {
+    renderTwoFlows();
+    expect(screen.getAllByTestId('kafka-message')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+    expect(screen.queryAllByTestId('kafka-message')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+    expect(screen.getAllByTestId('kafka-message')).toHaveLength(2);
+  });
+
+  it('selects all visible messages and clears the selection', () => {
+    renderTwoFlows();
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByRole('button', { name: 'Copy selected (2)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    expect(screen.queryByRole('button', { name: 'Copy selected (2)' })).toBeNull();
   });
 });

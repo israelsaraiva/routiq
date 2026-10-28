@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.6
+
+- Kafka Messages tab: Collapse all / Expand all, Select all and Clear selection.
+
 ## 0.6.5
 
 - Kafka Log file tab: collapse/expand all, select all/clear, and a resizable detail panel on the right.

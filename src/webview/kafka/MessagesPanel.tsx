@@ -11,7 +11,7 @@ import { Button } from '../components/ui/button';
 import { postKafkaMessage } from '../vscodeApi';
 import { EmptyState } from './EmptyState';
 import { ExperienceHeader } from './ExperienceHeader';
-import { FlowGroupList } from './FlowGroupList';
+import { FlowGroupList, useCollapsedFlows } from './FlowGroupList';
 import { MessageDisplayContext } from './MessageDisplayContext';
 import { MessageDetailPanel } from './MessageDetailPanel';
 import { MessageNavContext, useMessageNavState } from './MessageNav';
@@ -72,6 +72,8 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, onS
   const selectedMessages = visible.filter((message) => selection.selectedIds.has(message.id));
   const orderedIds = useMemo(() => groups.flatMap((group) => group.messages.map((message) => message.id)), [groups]);
   const nav = useMessageNavState(orderedIds);
+  const collapsedFlows = useCollapsedFlows();
+  const allSelected = orderedIds.length > 0 && orderedIds.every((id) => selection.selectedIds.has(id));
   const openMessage = visible.find((message) => message.id === nav.openId);
 
   useMessageShortcuts({
@@ -128,8 +130,20 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, onS
         <Badge variant="outline">{visible.length} messages</Badge>
         <Badge variant="info">{linkedCount} linked</Badge>
         {topics.length > 1 && <TopicChips topics={topics} active={topic} onChange={setTopic} />}
+        <Button variant="ghost" size="sm" disabled={groups.length === 0} onClick={() => collapsedFlows.collapseAll(groups.map((group) => group.flowId))}>
+          Collapse all
+        </Button>
+        <Button variant="ghost" size="sm" disabled={groups.length === 0} onClick={collapsedFlows.expandAll}>
+          Expand all
+        </Button>
+        <Button variant="ghost" size="sm" disabled={visible.length === 0 || allSelected} onClick={() => selection.toggle(orderedIds, true)}>
+          Select all
+        </Button>
         {selectedMessages.length > 0 && (
           <>
+            <Button variant="ghost" size="sm" onClick={selection.clear}>
+              Clear selection
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => copyMessages(selectedMessages)}>
               Copy selected ({selectedMessages.length})
             </Button>
@@ -167,6 +181,7 @@ export function MessagesPanel({ messages, connected, onUseForSend, onResend, onS
         ) : (
           <FlowGroupList
             groups={groups}
+            collapsedFlows={collapsedFlows}
             selectedIds={selection.selectedIds}
             onToggleSelected={selection.toggle}
             onCopy={copyMessage}
