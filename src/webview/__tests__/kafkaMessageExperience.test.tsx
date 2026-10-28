@@ -75,6 +75,29 @@ describe('JsonTree', () => {
     expect(screen.queryByText('name')).toBeNull();
   });
 
+  it('renders keys as plain text and ignores clicks while text is selected', () => {
+    const onCopy = vi.fn();
+    render(<JsonTree value={{ user: { name: 'ann' } }} onCopy={onCopy} />);
+    fireEvent.click(screen.getByText('Expand all'));
+    const key = screen.getByText('name');
+    expect(key.tagName).toBe('SPAN');
+    const selectValue = () => window.getSelection()?.selectAllChildren(screen.getByText(/ann/));
+    selectValue();
+    fireEvent.click(key);
+    expect(onCopy).not.toHaveBeenCalled();
+    window.getSelection()?.removeAllRanges();
+    fireEvent.click(key);
+    expect(onCopy).toHaveBeenCalledWith('$.user.name');
+  });
+
+  it('toggles a container with the caret', () => {
+    render(<JsonTree value={{ user: { name: 'ann' } }} onCopy={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Expand $.user' }));
+    expect(screen.getByText('name')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse $.user' }));
+    expect(screen.queryByText('name')).toBeNull();
+  });
+
   it('highlights search matches and opens their ancestors', () => {
     render(<JsonTree value={{ user: { name: 'ann' } }} searchTerm="ann" onCopy={vi.fn()} />);
     expect(document.querySelector('.kafka-tree-match')?.textContent).toBe('ann');

@@ -15,6 +15,12 @@ import { Button } from '../components/ui/button';
 const CHILD_PAGE_SIZE = 100;
 const ROOT_PATH = '$';
 
+const hasTextSelection = () => !(window.getSelection()?.isCollapsed ?? true);
+
+const runUnlessSelecting = (action: () => void) => () => {
+  if (!hasTextSelection()) action();
+};
+
 interface TreeContext {
   term: string;
   isOpen: (path: string) => boolean;
@@ -84,9 +90,9 @@ function Marked({ text, term }: { text: string; term: string }) {
 function NodeName({ context, path, name }: { context: TreeContext; path: string; name?: string | number }) {
   return name === undefined ? null : (
     <>
-      <button type="button" className="kafka-tree-key" title={`Copy path ${path}`} onClick={() => context.onCopy(path)}>
+      <span className="kafka-tree-key" title={`Copy path ${path}`} onClick={runUnlessSelecting(() => context.onCopy(path))}>
         <Marked text={String(name)} term={context.term} />
-      </button>
+      </span>
       <span className="kafka-tree-colon">: </span>
     </>
   );
@@ -131,11 +137,11 @@ function LeafNode({ context, path, value, name }: NodeProps) {
   return (
     <div className="kafka-tree-row kafka-tree-leaf">
       <NodeName context={context} path={path} name={name} />
-      <button type="button" className={`kafka-tree-value kafka-tree-${nodeKind(value)}`} title="Copy value" onClick={() => context.onCopy(text)}>
+      <span className={`kafka-tree-value kafka-tree-${nodeKind(value)}`} title="Copy value" onClick={runUnlessSelecting(() => context.onCopy(text))}>
         {typeof value === 'string' && '"'}
         <Marked text={shown} term={context.term} />
         {typeof value === 'string' && '"'}
-      </button>
+      </span>
       {isLong && (
         <button type="button" className="kafka-tree-more" onClick={() => setExpanded(!expanded)}>
           {expanded ? 'show less' : `show all (${text.length})`}

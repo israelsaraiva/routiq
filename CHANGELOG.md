@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.8
+
+- Kafka JSON tree: keys are plain themed text instead of light chips, and text can be selected and copied.
+
 ## 0.6.7
 
 - Kafka Messages tab: the message list no longer overlaps the stats and controls row when it wraps.

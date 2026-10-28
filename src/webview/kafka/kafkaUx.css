@@ -38,7 +38,7 @@
 .kafka-tree-number { color: var(--vscode-charts-blue, var(--vscode-terminal-ansiBlue)); }
 .kafka-tree-boolean { color: var(--vscode-charts-orange, var(--vscode-terminal-ansiYellow)); }
 .kafka-tree-null { color: var(--vscode-charts-purple, var(--vscode-terminal-ansiMagenta)); font-style: italic; }
-.kafka-tree-value { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.kafka-tree-value { background: none; border: 0; padding: 0; font: inherit; cursor: text; text-align: left; }
 .kafka-send-preview { display: flex; flex-direction: column; gap: var(--rq-space-2); border: 1px dashed var(--border); border-radius: var(--radius); padding: var(--rq-space-2); }
 @media (prefers-reduced-motion: reduce) { .kafka-status-dot { animation: none !important; } }
 
@@ -46,6 +46,7 @@
 .kafka-body[data-side='bottom'] { flex-direction: column; }
 .kafka-body .kafka-scroll { flex: 1 1 0; min-width: 0; min-height: 0; }
 .kafka-detail-slot { flex: 0 0 auto; min-width: 0; min-height: 0; display: flex; }
+.kafka-detail, .kafka-detail-body { user-select: text; }
 .kafka-detail { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; background: var(--vscode-editor-background, var(--background)); }
 .kafka-detail-header { display: flex; align-items: center; gap: var(--rq-space-2); padding: var(--rq-space-1) var(--rq-space-2); border-bottom: 1px solid var(--border); }
 .kafka-detail-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--rq-mono); font-weight: 600; }

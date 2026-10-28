@@ -64,7 +64,7 @@ export function MessageCard({ message, selected, onSelectedChange, onCopy, onDel
           tabIndex={0}
           aria-label="Show message details"
           aria-current={opened}
-          onClick={() => open(message.id)}
+          onClick={() => window.getSelection()?.isCollapsed !== false && open(message.id)}
           onKeyDown={(event) => event.key === 'Enter' && open(message.id)}
         >
           <time className="kafka-time" title={receivedAtTitle(message)}>{new Date(message.timestamp).toLocaleTimeString()}</time>
